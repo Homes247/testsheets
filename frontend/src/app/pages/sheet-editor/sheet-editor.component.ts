@@ -2664,25 +2664,41 @@ export interface AuditOp {
 
       <!-- Manage Picklist Sidebar Modal (Zoho Picklist Style Sidebar) -->
       <div class="modal-overlay drawer-overlay" *ngIf="managePicklistSidebarOpen" (click)="managePicklistSidebarOpen = false" style="z-index: 99999; background: rgba(0,0,0,0.4); display: flex; justify-content: flex-end;">
-        <div class="modal drawer-content" (click)="$event.stopPropagation()" style="width:420px; height:100vh; background:#202124; color:#e8eaed; border-left:1px solid #3c4043; box-shadow:-4px 0 24px rgba(0,0,0,0.5); display:flex; flex-direction:column; position:fixed; right:0; top:0; z-index:100000; box-sizing:border-box; overflow-x:hidden;">
+        <div class="modal drawer-content" (click)="$event.stopPropagation()"
+             [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
+             [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'"
+             [style.border-left]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+             style="width:420px; height:100vh; box-shadow:-4px 0 24px rgba(0,0,0,0.15); display:flex; flex-direction:column; position:fixed; right:0; top:0; z-index:100000; box-sizing:border-box; overflow-x:hidden;">
           
           <!-- Header -->
-          <div style="padding: 16px 20px; border-bottom:1px solid #3c4043; background:#202124; display:flex; justify-content:space-between; align-items:center;">
-            <h3 style="margin:0; font-size:16px; font-weight:600; color:#fff;">Manage Picklist</h3>
-            <button (click)="managePicklistSidebarOpen = false" style="background:none; border:none; cursor:pointer; color:#9aa0a6; display:flex; padding:0;"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>
+          <div [style.background]="currentTheme === 'dark' ? '#202124' : '#f8f9fa'"
+               [style.border-bottom]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+               style="padding: 16px 20px; display:flex; justify-content:space-between; align-items:center;">
+            <h3 [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'" style="margin:0; font-size:16px; font-weight:600;">Manage Picklist</h3>
+            <button (click)="managePicklistSidebarOpen = false" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none; border:none; cursor:pointer; display:flex; padding:0;"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>
           </div>
 
           <!-- View Rules Filters (Screenshot 1, 2, 3) -->
-          <div style="padding: 14px 20px; border-bottom:1px solid #2d2e31; background:#202124; display:flex; flex-direction:column; gap:8px;">
-            <div style="font-size:12.5px; color:#9aa0a6;">View Rules for:</div>
+          <div [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
+               [style.border-bottom]="currentTheme === 'dark' ? '1px solid #2d2e31' : '1px solid #dadce0'"
+               style="padding: 14px 20px; display:flex; flex-direction:column; gap:8px;">
+            <div [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:12.5px;">View Rules for:</div>
             <div style="display:flex; gap:10px;">
-              <select [(ngModel)]="viewRulesSheet" (ngModelChange)="refreshManagePicklistRules()" style="flex:1.2; padding:6px 10px; border:1px solid #5f6368; border-radius:6px; background:#2d2e31; color:#fff; font-size:13px; outline:none; cursor:pointer;">
+              <select [(ngModel)]="viewRulesSheet" (ngModelChange)="refreshManagePicklistRules()"
+                      [style.background]="currentTheme === 'dark' ? '#2d2e31' : '#f1f3f4'"
+                      [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'"
+                      [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+                      style="flex:1.2; padding:6px 10px; border-radius:6px; font-size:13px; outline:none; cursor:pointer;">
                 <option value="current">{{sheets[currentSheetIdx].name}}</option>
                 <option value="all">Whole Spreadsheet</option>
                 <option *ngFor="let s of sheets" [value]="s.name">{{s.name}}</option>
               </select>
 
-              <select [(ngModel)]="viewRulesType" (ngModelChange)="refreshManagePicklistRules()" style="flex:1; padding:6px 10px; border:1px solid #5f6368; border-radius:6px; background:#2d2e31; color:#fff; font-size:13px; outline:none; cursor:pointer;">
+              <select [(ngModel)]="viewRulesType" (ngModelChange)="refreshManagePicklistRules()"
+                      [style.background]="currentTheme === 'dark' ? '#2d2e31' : '#f1f3f4'"
+                      [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'"
+                      [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+                      style="flex:1; padding:6px 10px; border-radius:6px; font-size:13px; outline:none; cursor:pointer;">
                 <option value="all">All Rules</option>
                 <option value="list">List</option>
                 <option value="range">Cell Range</option>
@@ -2691,32 +2707,35 @@ export interface AuditOp {
           </div>
 
           <!-- Picklist Rule Cards Body -->
-          <div style="padding: 16px 20px; flex:1; overflow-y:auto; background:#202124; display:flex; flex-direction:column; gap:14px;">
-            <div *ngIf="_managePicklistRules.length === 0" style="text-align:center; padding:40px 10px; color:#9aa0a6; font-size:13px;">
+          <div [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'" style="padding: 16px 20px; flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:14px;">
+            <div *ngIf="_managePicklistRules.length === 0" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="text-align:center; padding:40px 10px; font-size:13px;">
               No picklist rules found.
             </div>
 
-            <div *ngFor="let rule of _managePicklistRules" style="background:#2d2e31; border:1px solid #3c4043; border-radius:8px; padding:14px; display:flex; flex-direction:column; gap:10px;">
+            <div *ngFor="let rule of _managePicklistRules"
+                 [style.background]="currentTheme === 'dark' ? '#2d2e31' : '#f1f3f4'"
+                 [style.border]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+                 style="border-radius:8px; padding:14px; display:flex; flex-direction:column; gap:10px;">
               <!-- Card Header -->
               <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:600; font-size:13.5px; color:#fff;">{{rule.rangeRef}}</span>
+                <span [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'" style="font-weight:600; font-size:13.5px;">{{rule.rangeRef}}</span>
                 <div style="display:flex; align-items:center; gap:8px;">
-                  <button (click)="$event.stopPropagation(); copyPicklistRule(rule, $event)" style="background:none; border:none; color:#9aa0a6; cursor:pointer; padding:2px; display:flex;" title="Copy rule">
+                  <button (click)="$event.stopPropagation(); copyPicklistRule(rule, $event)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none; border:none; cursor:pointer; padding:2px; display:flex;" title="Copy rule">
                     <span class="material-symbols-outlined" style="font-size:18px; pointer-events:none;">content_copy</span>
                   </button>
-                  <button (click)="$event.stopPropagation(); editPicklistRule(rule, $event)" style="background:none; border:none; color:#9aa0a6; cursor:pointer; padding:2px; display:flex;" title="Edit rule">
+                  <button (click)="$event.stopPropagation(); editPicklistRule(rule, $event)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none; border:none; cursor:pointer; padding:2px; display:flex;" title="Edit rule">
                     <span class="material-symbols-outlined" style="font-size:18px; pointer-events:none;">edit</span>
                   </button>
-                  <button (click)="$event.stopPropagation(); deletePicklistRule(rule, $event)" style="background:none; border:none; color:#9aa0a6; cursor:pointer; padding:2px; display:flex;" title="Delete rule">
+                  <button (click)="$event.stopPropagation(); deletePicklistRule(rule, $event)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none; border:none; cursor:pointer; padding:2px; display:flex;" title="Delete rule">
                     <span class="material-symbols-outlined" style="font-size:18px; pointer-events:none;">delete</span>
                   </button>
                 </div>
               </div>
 
               <!-- Card Options Horizontal Bar -->
-              <div style="display:flex; flex-wrap:wrap; gap:6px; font-size:12.5px; color:#bdc1c6;">
+              <div [style.color]="currentTheme === 'dark' ? '#bdc1c6' : '#4b5563'" style="display:flex; flex-wrap:wrap; gap:6px; font-size:12.5px;">
                 <span *ngFor="let opt of rule.options; let isLast = last">
-                  {{opt.label}}<span *ngIf="!isLast" style="margin-left:6px; color:#5f6368;">|</span>
+                  {{opt.label}}<span *ngIf="!isLast" [style.color]="currentTheme === 'dark' ? '#5f6368' : '#9ca3af'" style="margin-left:6px;">|</span>
                 </span>
               </div>
             </div>
@@ -2726,26 +2745,32 @@ export interface AuditOp {
 
       <!-- Validation / Dropdown Modal (Zoho Picklist Style Sidebar) -->
       <div class="modal-overlay drawer-overlay" *ngIf="validationModalOpen" (click)="showColorOptionsPopover ? closeColorOptionsPopover() : (validationModalOpen = false)" style="z-index: 99999; background: rgba(0,0,0,0.4); display: flex; justify-content: flex-end;">
-        <div class="modal drawer-content" (click)="$event.stopPropagation()" style="width:420px; height:100vh; background:#202124; color:#e8eaed; border-left:1px solid #3c4043; box-shadow:-4px 0 24px rgba(0,0,0,0.5); display:flex; flex-direction:column; position:fixed; right:0; top:0; z-index:100000; box-sizing:border-box; overflow-x:hidden;">
+        <div class="modal drawer-content" (click)="$event.stopPropagation()"
+             [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
+             [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'"
+             [style.border-left]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+             style="width:420px; height:100vh; box-shadow:-4px 0 24px rgba(0,0,0,0.15); display:flex; flex-direction:column; position:fixed; right:0; top:0; z-index:100000; box-sizing:border-box; overflow-x:hidden;">
           
           <!-- Header (Screenshot 4 & 5) -->
-          <div style="padding: 16px 20px; border-bottom:1px solid #3c4043; background:#202124;">
+          <div [style.background]="currentTheme === 'dark' ? '#202124' : '#f8f9fa'"
+               [style.border-bottom]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+               style="padding: 16px 20px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <h3 style="margin:0; font-size:16px; font-weight:600; color:#fff;">{{ isCopyMode ? 'Picklist' : 'Picklist - Edit' }}</h3>
-              <button (click)="validationModalOpen = false; closeColorOptionsPopover()" style="background:none; border:none; cursor:pointer; color:#9aa0a6; display:flex; padding:0;"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>
+              <h3 [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'" style="margin:0; font-size:16px; font-weight:600;">{{ isCopyMode ? 'Picklist' : 'Picklist - Edit' }}</h3>
+              <button (click)="validationModalOpen = false; closeColorOptionsPopover()" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none; border:none; cursor:pointer; display:flex; padding:0;"><span class="material-symbols-outlined" style="font-size:20px;">close</span></button>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; color:#bdc1c6; min-height:28px;">
+            <div [style.color]="currentTheme === 'dark' ? '#bdc1c6' : '#4b5563'" style="display:flex; justify-content:space-between; align-items:center; font-size:12.5px; min-height:28px;">
               <!-- Static View Mode (Screenshot 5) -->
               <ng-container *ngIf="!appliesToEditing">
-                <span>Applies to: <span style="color:#e8eaed; font-weight:500;">{{appliesToInput || ("'" + (sheets[currentSheetIdx].name || 'Sheet1') + "'." + getRangeRef())}}</span></span>
+                <span>Applies to: <span [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="font-weight:500;">{{appliesToInput || ("'" + (sheets[currentSheetIdx].name || 'Sheet1') + "'." + getRangeRef())}}</span></span>
                 <span (click)="startEditingAppliesTo()" style="color:#00c274; cursor:pointer; font-weight:500; margin-left:auto;">Edit</span>
               </ng-container>
 
               <!-- Editable Mode with Green Check & Red Cancel (Screenshot 4) -->
               <ng-container *ngIf="appliesToEditing">
                 <span style="white-space:nowrap; margin-right:6px;">Applies to:</span>
-                <input type="text" [(ngModel)]="appliesToInput" style="flex:1; background:transparent; border:none; border-bottom:1.5px solid #00c274; color:#fff; font-size:12.5px; outline:none; padding:2px 4px;">
+                <input type="text" [(ngModel)]="appliesToInput" [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'" style="flex:1; background:transparent; border:none; border-bottom:1.5px solid #00c274; font-size:12.5px; outline:none; padding:2px 4px;">
                 <button (click)="confirmAppliesTo()" style="background:none; border:none; color:#00c274; cursor:pointer; padding:2px; display:flex; margin-left:4px;" title="Confirm range">
                   <span class="material-symbols-outlined" style="font-size:20px;">check_circle</span>
                 </button>
@@ -2757,40 +2782,50 @@ export interface AuditOp {
           </div>
 
           <!-- Body -->
-          <div style="padding: 16px 20px; overflow-y:auto; overflow-x:hidden; flex:1; background:#202124; display:flex; flex-direction:column; gap:14px;">
+          <div [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'" style="padding: 16px 20px; overflow-y:auto; overflow-x:hidden; flex:1; display:flex; flex-direction:column; gap:14px;">
             
             <!-- Selection Type Radios -->
-            <div style="background:#2d2e31; border:1px solid #3c4043; border-radius:20px; padding:6px 16px; display:flex; justify-content:space-around;">
-              <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; color:#e8eaed;">
+            <div [style.background]="currentTheme === 'dark' ? '#2d2e31' : '#f1f3f4'"
+                 [style.border]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+                 style="border-radius:20px; padding:6px 16px; display:flex; justify-content:space-around;">
+              <label [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
                 <input type="radio" name="select_type" value="single" [(ngModel)]="picklistSelectType" style="accent-color:#00c274;"> Single-Select
               </label>
-              <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; color:#e8eaed;">
+              <label [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
                 <input type="radio" name="select_type" value="multi" [(ngModel)]="picklistSelectType" style="accent-color:#00c274;"> Multi-Select
               </label>
             </div>
 
             <!-- Settings Group -->
-            <div style="background:#2d2e31; border:1px solid #3c4043; border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:12px;">
+            <div [style.background]="currentTheme === 'dark' ? '#2d2e31' : '#f1f3f4'"
+                 [style.border]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+                 style="border-radius:8px; padding:12px; display:flex; flex-direction:column; gap:12px;">
               <div style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:13px; color:#9aa0a6;">Type</span>
-                <select style="width:120px; padding:4px 8px; border:1px solid #5f6368; border-radius:4px; font-size:13px; outline:none; cursor:pointer; background:#202124; color:#fff;">
+                <span [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:13px;">Type</span>
+                <select [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
+                        [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'"
+                        [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+                        style="width:120px; padding:4px 8px; border-radius:4px; font-size:13px; outline:none; cursor:pointer;">
                   <option>List</option>
                 </select>
               </div>
 
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; color:#e8eaed;">
-                <span style="cursor:pointer; display:flex; align-items:center; gap:4px; color:#e8eaed;">Sort <span class="material-symbols-outlined" style="font-size:16px;">arrow_downward</span></span>
+              <div [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+                <span (click)="sortPicklistOptions()" [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="cursor:pointer; display:flex; align-items:center; gap:4px; user-select:none;" title="Click to sort items alphabetically">Sort <span class="material-symbols-outlined" style="font-size:16px;">{{ picklistSortAsc ? 'arrow_downward' : 'arrow_upward' }}</span></span>
                 <label (click)="displayAsChip = !displayAsChip" style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                   Display as chip
-                  <div [style.background]="displayAsChip ? '#00c274' : '#5f6368'" style="width:34px; height:18px; border-radius:10px; position:relative; transition:background 0.2s;">
+                  <div [style.background]="displayAsChip ? '#00c274' : (currentTheme === 'dark' ? '#5f6368' : '#dadce0')" style="width:34px; height:18px; border-radius:10px; position:relative; transition:background 0.2s;">
                     <div [style.right]="displayAsChip ? '2px' : '18px'" style="width:14px; height:14px; background:#fff; border-radius:50%; position:absolute; top:2px; transition:right 0.2s;"></div>
                   </div>
                 </label>
               </div>
 
               <div *ngIf="picklistSelectType !== 'multi'" style="display:flex; align-items:center; justify-content:space-between;">
-                <span style="font-size:13px; color:#9aa0a6;">Color options</span>
-                <select style="width:140px; padding:4px 8px; border:1px solid #5f6368; border-radius:4px; font-size:13px; outline:none; cursor:pointer; background:#202124; color:#fff;">
+                <span [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:13px;">Color options</span>
+                <select [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
+                        [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'"
+                        [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+                        style="width:140px; padding:4px 8px; border-radius:4px; font-size:13px; outline:none; cursor:pointer;">
                   <option>Single Color</option>
                   <option>Multi Color</option>
                 </select>
@@ -2805,81 +2840,144 @@ export interface AuditOp {
                    (dragover)="onOptionDragOver($event, i)" 
                    (drop)="onOptionDrop($event, i)"
                    style="display:flex; align-items:center; gap:4px;">
-                <span class="material-symbols-outlined" style="color:#9aa0a6; cursor:grab; font-size:18px; flex-shrink:0;">drag_indicator</span>
+                <span class="material-symbols-outlined" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#94a3b8'" style="cursor:grab; font-size:18px; flex-shrink:0;">drag_indicator</span>
                 
                 <input type="text" [(ngModel)]="opt.label" placeholder="Item name"
-                  [style.background]="picklistSelectType === 'multi' ? '#202124' : (opt.color || '#f97316')"
-                  [style.color]="picklistSelectType === 'multi' ? '#e8eaed' : (opt.textColor || '#000000')"
-                  [style.border]="picklistSelectType === 'multi' ? '1px solid #5f6368' : '1px solid transparent'"
+                  [style.background]="picklistSelectType === 'multi' ? (currentTheme === 'dark' ? '#202124' : '#ffffff') : (opt.color || (currentTheme === 'dark' ? '#f97316' : '#f1f3f4'))"
+                  [style.color]="picklistSelectType === 'multi' ? (currentTheme === 'dark' ? '#e8eaed' : '#202124') : (opt.textColor || (currentTheme === 'dark' ? '#000000' : '#202124'))"
+                  [style.border]="picklistSelectType === 'multi' ? (currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0') : '1px solid transparent'"
                   [style.borderRadius]="displayAsChip ? '18px' : '4px'"
                   (click)="picklistSelectType !== 'multi' && openColorOptionsPopover(i, $event)"
                   style="flex:1; min-width:0; padding:7px 12px; outline:none; font-size:13px; font-weight:500; transition:all 0.2s;" [style.cursor]="picklistSelectType === 'multi' ? 'text' : 'pointer'" title="Click to configure colors">
 
-                <button *ngIf="picklistSelectType !== 'multi'" type="button" (click)="openColorOptionsPopover(i, $event)" style="background:none;border:none;color:#9aa0a6;cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0;" title="Palette options">
+                <button *ngIf="picklistSelectType !== 'multi'" type="button" (click)="openColorOptionsPopover(i, $event)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0;" title="Palette options">
                   <span class="material-symbols-outlined" style="font-size:18px;">palette</span>
                 </button>
-                <button (click)="picklistOptions.splice(i, 1)" style="background:none;border:none;color:#9aa0a6;cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0;" title="Delete item">
+                <button (click)="picklistOptions.splice(i, 1)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0;" title="Delete item">
                   <span class="material-symbols-outlined" style="font-size:18px;">close</span>
                 </button>
               </div>
 
-              <button (click)="addPicklistOption()" style="background:none; border:1px dashed #5f6368; color:#00c274; border-radius:6px; padding:8px 12px; cursor:pointer; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:6px;">
+              <button (click)="addPicklistOption()" [style.border]="currentTheme === 'dark' ? '1px dashed #5f6368' : '1px dashed #dadce0'" style="background:none; color:#00c274; border-radius:6px; padding:8px 12px; cursor:pointer; font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; margin-top:6px;">
                 <span class="material-symbols-outlined" style="font-size:18px;">add_circle</span> Add New
               </button>
             </div>
           </div>
 
           <!-- Footer -->
-          <div style="padding: 16px 20px; border-top:1px solid #3c4043; background:#202124; display:flex; justify-content:flex-end; gap:12px;">
+          <div [style.background]="currentTheme === 'dark' ? '#202124' : '#f8f9fa'"
+               [style.border-top]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+               style="padding: 16px 20px; display:flex; justify-content:flex-end; gap:12px;">
             <button (click)="saveValidation(); closeColorOptionsPopover()" style="background:#00c274; color:#fff; border:none; padding:8px 22px; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px; transition:background 0.2s;" onmouseover="this.style.background='#009a5f'" onmouseout="this.style.background='#00c274'">Save</button>
-            <button (click)="validationModalOpen = false; closeColorOptionsPopover()" style="background:#3c4043; color:#e8eaed; border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:500; font-size:14px; transition:background 0.2s;" onmouseover="this.style.background='#4a4d51'" onmouseout="this.style.background='#3c4043'">Cancel</button>
+            <button (click)="validationModalOpen = false; closeColorOptionsPopover()"
+                    [style.background]="currentTheme === 'dark' ? '#3c4043' : '#e2e8f0'"
+                    [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#3c4043'"
+                    style="border:none; padding:8px 18px; border-radius:6px; cursor:pointer; font-weight:500; font-size:14px; transition:background 0.2s;">Cancel</button>
           </div>
         </div>
 
         <!-- Color Options Popover Modal -->
-        <div *ngIf="showColorOptionsPopover" (click)="$event.stopPropagation()" style="position:fixed; right:375px; top:120px; width:440px; background:#202124; border:1px solid #5f6368; border-radius:8px; box-shadow:0 12px 32px rgba(0,0,0,0.6); padding:16px; color:#e8eaed; z-index:100001;">
+        <div *ngIf="showColorOptionsPopover" (click)="$event.stopPropagation()"
+             [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
+             [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+             [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'"
+             style="position:fixed; right:375px; top:120px; width:440px; border-radius:8px; box-shadow:0 12px 32px rgba(0,0,0,0.25); padding:16px; z-index:100001;">
           <!-- Header -->
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #3c4043; padding-bottom:8px;">
-            <span style="font-weight:600; font-size:14px; color:#fff;">Color options</span>
+          <div [style.border-bottom]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+               style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding-bottom:8px;">
+            <span [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'" style="font-weight:600; font-size:14px;">Color options</span>
             <div style="display:flex; align-items:center; gap:12px;">
               <span (click)="resetItemColor()" style="color:#00c274; cursor:pointer; font-size:12px; font-weight:500;">Reset</span>
-              <button (click)="closeColorOptionsPopover($event)" style="background:none; border:none; color:#9aa0a6; cursor:pointer; padding:0; display:flex;"><span class="material-symbols-outlined" style="font-size:18px;">close</span></button>
+              <button (click)="closeColorOptionsPopover($event)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none; border:none; cursor:pointer; padding:0; display:flex;"><span class="material-symbols-outlined" style="font-size:18px;">close</span></button>
             </div>
           </div>
 
-          <!-- 2 Columns: Fill Color & Text Color -->
-          <div style="display:flex; gap:16px;">
+          <!-- 2 Columns: Fill Color & Text Color (Preset Mode) -->
+          <div *ngIf="!showCustomColorsInPopover" style="display:flex; gap:16px;">
             <!-- Fill Color Column -->
             <div style="flex:1;">
-              <div style="font-size:12px; font-weight:600; color:#e8eaed; margin-bottom:8px;">Fill Color</div>
-              <div style="font-size:11px; color:#9aa0a6; margin-bottom:4px;">Theme Colors</div>
-              <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-bottom:10px;">
-                <div *ngFor="let c of themeColorsGrid" (click)="setItemFillColor(c)" [style.background]="c" style="width:16px; height:16px; border-radius:2px; cursor:pointer; border:1px solid rgba(255,255,255,0.1);" [title]="c"></div>
+              <div [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="font-size:12px; font-weight:600; margin-bottom:8px;">Fill Color</div>
+              <div [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:11px; margin-bottom:4px;">Theme Colors</div>
+              <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-bottom:4px;">
+                <div *ngFor="let c of themeColorsTop" (click)="setItemFillColor(c)" [style.background]="c" [style.border]="currentTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.15)'" style="width:16px; height:16px; border-radius:2px; cursor:pointer;" [title]="c"></div>
               </div>
-              <div style="font-size:11px; color:#9aa0a6; margin-bottom:4px;">Standard Colors</div>
+              <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-bottom:10px;">
+                <div *ngFor="let c of themeColorsGrid" (click)="setItemFillColor(c)" [style.background]="c" [style.border]="currentTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.15)'" style="width:16px; height:16px; border-radius:2px; cursor:pointer;" [title]="c"></div>
+              </div>
+              <div [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:11px; margin-bottom:4px;">Standard Colors</div>
               <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px;">
-                <div *ngFor="let c of standardColorsRow" (click)="setItemFillColor(c)" [style.background]="c" style="width:16px; height:16px; border-radius:2px; cursor:pointer; border:1px solid rgba(255,255,255,0.1);" [title]="c"></div>
+                <div *ngFor="let c of standardColorsRow" (click)="setItemFillColor(c)" [style.background]="c" [style.border]="currentTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.15)'" style="width:16px; height:16px; border-radius:2px; cursor:pointer;" [title]="c"></div>
               </div>
             </div>
 
             <!-- Text Color Column -->
             <div style="flex:1;">
-              <div style="font-size:12px; font-weight:600; color:#e8eaed; margin-bottom:8px;">Text Color</div>
-              <div style="font-size:11px; color:#9aa0a6; margin-bottom:4px;">Theme Colors</div>
-              <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-bottom:10px;">
-                <div *ngFor="let c of themeColorsGrid" (click)="setItemTextColor(c)" [style.background]="c" style="width:16px; height:16px; border-radius:2px; cursor:pointer; border:1px solid rgba(255,255,255,0.1);" [title]="c"></div>
+              <div [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="font-size:12px; font-weight:600; margin-bottom:8px;">Text Color</div>
+              <div [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:11px; margin-bottom:4px;">Theme Colors</div>
+              <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-bottom:4px;">
+                <div *ngFor="let c of themeColorsTop" (click)="setItemTextColor(c)" [style.background]="c" [style.border]="currentTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.15)'" style="width:16px; height:16px; border-radius:2px; cursor:pointer;" [title]="c"></div>
               </div>
-              <div style="font-size:11px; color:#9aa0a6; margin-bottom:4px;">Standard Colors</div>
+              <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px; margin-bottom:10px;">
+                <div *ngFor="let c of themeColorsGrid" (click)="setItemTextColor(c)" [style.background]="c" [style.border]="currentTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.15)'" style="width:16px; height:16px; border-radius:2px; cursor:pointer;" [title]="c"></div>
+              </div>
+              <div [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="font-size:11px; margin-bottom:4px;">Standard Colors</div>
               <div style="display:grid; grid-template-columns:repeat(10, 1fr); gap:3px;">
-                <div *ngFor="let c of standardColorsRow" (click)="setItemTextColor(c)" [style.background]="c" style="width:16px; height:16px; border-radius:2px; cursor:pointer; border:1px solid rgba(255,255,255,0.1);" [title]="c"></div>
+                <div *ngFor="let c of standardColorsRow" (click)="setItemTextColor(c)" [style.background]="c" [style.border]="currentTheme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.15)'" style="width:16px; height:16px; border-radius:2px; cursor:pointer;" [title]="c"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Color Mode (More colors) -->
+          <div *ngIf="showCustomColorsInPopover" style="padding:6px 4px;">
+            <!-- Live Preview Chip -->
+            <div style="margin-bottom:16px; padding:12px; border-radius:6px; display:flex; align-items:center; justify-content:center;" [style.background]="currentTheme === 'dark' ? '#18191b' : '#f1f3f4'">
+              <span *ngIf="colorPopoverItemIndex !== null && picklistOptions[colorPopoverItemIndex]"
+                    [style.background]="picklistOptions[colorPopoverItemIndex].color || '#ffffff'"
+                    [style.color]="picklistOptions[colorPopoverItemIndex].textColor || '#000000'"
+                    style="padding:6px 16px; border-radius:16px; font-weight:600; font-size:13px; box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                {{ picklistOptions[colorPopoverItemIndex].label || 'Preview Item' }}
+              </span>
+            </div>
+
+            <!-- Custom Fill and Text Color Controls -->
+            <div style="display:flex; gap:16px; margin-bottom:6px;">
+              <div style="flex:1;">
+                <label [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="font-size:12px; font-weight:500; display:block; margin-bottom:6px;">Custom Fill Color</label>
+                <div style="display:flex; align-items:center; gap:8px;" *ngIf="colorPopoverItemIndex !== null && picklistOptions[colorPopoverItemIndex]">
+                  <input type="color" [ngModel]="picklistOptions[colorPopoverItemIndex].color || '#ffffff'" (ngModelChange)="setItemFillColor($event)" style="width:36px; height:36px; border:none; cursor:pointer; background:transparent; padding:0;">
+                  <input type="text" [ngModel]="picklistOptions[colorPopoverItemIndex].color || '#ffffff'" (ngModelChange)="setItemFillColor($event)"
+                         [style.background]="currentTheme === 'dark' ? '#1c1d1f' : '#ffffff'"
+                         [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'"
+                         [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+                         style="width:100%; padding:7px 10px; border-radius:4px; font-family:monospace; font-size:13px; outline:none;" placeholder="#ffffff">
+                </div>
+              </div>
+
+              <div style="flex:1;">
+                <label [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'" style="font-size:12px; font-weight:500; display:block; margin-bottom:6px;">Custom Text Color</label>
+                <div style="display:flex; align-items:center; gap:8px;" *ngIf="colorPopoverItemIndex !== null && picklistOptions[colorPopoverItemIndex]">
+                  <input type="color" [ngModel]="picklistOptions[colorPopoverItemIndex].textColor || '#000000'" (ngModelChange)="setItemTextColor($event)" style="width:36px; height:36px; border:none; cursor:pointer; background:transparent; padding:0;">
+                  <input type="text" [ngModel]="picklistOptions[colorPopoverItemIndex].textColor || '#000000'" (ngModelChange)="setItemTextColor($event)"
+                         [style.background]="currentTheme === 'dark' ? '#1c1d1f' : '#ffffff'"
+                         [style.color]="currentTheme === 'dark' ? '#fff' : '#202124'"
+                         [style.border]="currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0'"
+                         style="width:100%; padding:7px 10px; border-radius:4px; font-family:monospace; font-size:13px; outline:none;" placeholder="#000000">
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Footer Buttons -->
-          <div style="display:flex; justify-content:space-between; margin-top:16px; border-top:1px solid #3c4043; padding-top:10px;">
-            <button (click)="closeColorOptionsPopover($event)" style="background:#3c4043; color:#e8eaed; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Back</button>
-            <button style="background:#3c4043; color:#e8eaed; border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">More colors</button>
+          <div [style.border-top]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
+               style="display:flex; justify-content:space-between; margin-top:16px; padding-top:10px;">
+            <button (click)="closeColorOptionsPopover($event)"
+                    [style.background]="currentTheme === 'dark' ? '#3c4043' : '#e2e8f0'"
+                    [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#3c4043'"
+                    style="border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">Back</button>
+            <button (click)="showCustomColorsInPopover = !showCustomColorsInPopover"
+                    [style.background]="currentTheme === 'dark' ? '#3c4043' : '#e2e8f0'"
+                    [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#3c4043'"
+                    style="border:none; padding:5px 12px; border-radius:4px; cursor:pointer; font-size:12px;">{{ showCustomColorsInPopover ? 'Preset colors' : 'More colors' }}</button>
           </div>
         </div>
       </div>
@@ -5356,6 +5454,20 @@ export interface AuditOp {
     ::ng-deep .option-list::-webkit-scrollbar { width: 6px; }
     ::ng-deep .option-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 3px; }
 
+    /* LIGHT MODE DROPDOWN */
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown { background: #ffffff !important; border-color: #dadce0 !important; box-shadow: 0 8px 24px rgba(0,0,0,0.15) !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .custom-dropdown-item { color: #202124 !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .custom-dropdown-item:hover { background: rgba(0,0,0,0.06) !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row { color: #202124 !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row:hover, ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row:focus { background: rgba(0,0,0,0.06) !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row[data-selected="true"] { background: #e8f0fe !important; color: #1a73e8 !important; font-weight: 500 !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row.clear-option { color: #5f6368 !important; border-bottom-color: #dadce0 !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row.clear-option:hover, ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-row.clear-option:focus { color: #202124 !important; background: rgba(0,0,0,0.06) !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .dropdown-divider { background: #dadce0 !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .edit-btn { color: #5f6368 !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .edit-btn:hover, ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .edit-btn:focus { color: #202124 !important; background: rgba(0,0,0,0.05) !important; }
+    ::ng-deep .custom-dropdown-overlay.theme-light-dropdown .option-list::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2) !important; }
+
     /* ── DRAWER SLIDE-IN ANIMATIONS ─────────────────────────────────────── */
     @keyframes drawerSlideIn {
       from { transform: translateX(100%); }
@@ -6186,6 +6298,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   rangeStart: { r: number, c: number } | null = null;
   rangeEnd: { r: number, c: number } | null = null;
   private isDraggingRange = false;
+  private dragAutoScrollTimer: any = null;
+  private lastDragMouseX: number = 0;
+  private lastDragMouseY: number = 0;
 
   // Fill handle
   private isFilling = false;
@@ -6196,8 +6311,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     dstMinR: number; dstMaxR: number; dstMinC: number; dstMaxC: number;
     goDown: boolean; goUp: boolean; goRight: boolean; goLeft: boolean;
     ctrlKey: boolean;
-    sourceData: { r: number; c: number; val: string; fmt: any }[];
-    targetBackup: { r: number; c: number; val: string; fmt: any }[];
+    sourceData: { r: number; c: number; val: string; fmt: any; valRule?: any }[];
+    targetBackup: { r: number; c: number; val: string; fmt: any; valRule?: any }[];
     mode: 'Fill Series' | 'Copy Cells' | 'Fill Formatting' | 'Fill Without Formatting';
     showMenu: boolean; iconX: number; iconY: number;
   } | null = null;
@@ -6235,6 +6350,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   showColorOptionsPopover = false;
   colorPopoverItemIndex: number | null = null;
   draggedOptionIndex: number | null = null;
+  picklistSortAsc = true;
+  showCustomColorsInPopover = false;
+
+  sortPicklistOptions() {
+    if (!this.picklistOptions) return;
+    this.picklistSortAsc = !this.picklistSortAsc;
+    this.picklistOptions.sort((a, b) => {
+      const cmp = (a.label || '').localeCompare(b.label || '');
+      return this.picklistSortAsc ? cmp : -cmp;
+    });
+  }
 
   onOptionDragStart(event: DragEvent, index: number) {
     this.draggedOptionIndex = index;
@@ -6267,6 +6393,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   openColorOptionsPopover(index: number, event?: MouseEvent) {
     if (event) event.stopPropagation();
     this.colorPopoverItemIndex = index;
+    this.showCustomColorsInPopover = false;
     this.showColorOptionsPopover = true;
   }
 
@@ -6276,6 +6403,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       event.preventDefault();
     }
     this.showColorOptionsPopover = false;
+    this.showCustomColorsInPopover = false;
     this.colorPopoverItemIndex = null;
   }
 
@@ -7169,6 +7297,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   @HostListener('document:mouseup')
   onDocMouseUp(e?: MouseEvent) {
+    if (this.dragAutoScrollTimer) {
+      clearInterval(this.dragAutoScrollTimer);
+      this.dragAutoScrollTimer = null;
+    }
     if (this.isFilling && this.fillEnd) {
       this.applyFill(e?.ctrlKey ?? false);
     }
@@ -7176,6 +7308,136 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.isFilling = false;
     this.fillStart = null;
     this.ocrDragging = false;
+  }
+
+  @HostListener('document:mousemove', ['$event'])
+  onDocMouseMove(e: MouseEvent) {
+    if (!this.isDraggingRange && !this.isFilling) {
+      if (this.dragAutoScrollTimer) {
+        clearInterval(this.dragAutoScrollTimer);
+        this.dragAutoScrollTimer = null;
+      }
+      return;
+    }
+    this.lastDragMouseX = e.clientX;
+    this.lastDragMouseY = e.clientY;
+
+    this.updateDragSelectionFromMouse();
+
+    if (!this.dragAutoScrollTimer) {
+      this.dragAutoScrollTimer = setInterval(() => this.checkDragAutoScroll(), 40);
+    }
+  }
+
+  private checkDragAutoScroll() {
+    if (!this.isDraggingRange && !this.isFilling) {
+      if (this.dragAutoScrollTimer) {
+        clearInterval(this.dragAutoScrollTimer);
+        this.dragAutoScrollTimer = null;
+      }
+      return;
+    }
+    const wrapEl = this.gridWrapRef?.nativeElement || (document.querySelector('.grid-wrap') as HTMLElement);
+    if (!wrapEl) return;
+
+    const rect = wrapEl.getBoundingClientRect();
+    const x = this.lastDragMouseX;
+    const y = this.lastDragMouseY;
+    const threshold = 40;
+    let scrolled = false;
+
+    if (y > rect.bottom - threshold) {
+      const speed = Math.min(80, Math.max(15, Math.floor((y - (rect.bottom - threshold)) * 0.8)));
+      wrapEl.scrollTop = Math.min(wrapEl.scrollHeight - wrapEl.clientHeight, wrapEl.scrollTop + speed);
+      scrolled = true;
+    } else if (y < rect.top + threshold && wrapEl.scrollTop > 0) {
+      const speed = Math.min(80, Math.max(15, Math.floor(((rect.top + threshold) - y) * 0.8)));
+      wrapEl.scrollTop = Math.max(0, wrapEl.scrollTop - speed);
+      scrolled = true;
+    }
+
+    if (x > rect.right - threshold) {
+      const speed = Math.min(80, Math.max(15, Math.floor((x - (rect.right - threshold)) * 0.8)));
+      wrapEl.scrollLeft = Math.min(wrapEl.scrollWidth - wrapEl.clientWidth, wrapEl.scrollLeft + speed);
+      scrolled = true;
+    } else if (x < rect.left + threshold && wrapEl.scrollLeft > 0) {
+      const speed = Math.min(80, Math.max(15, Math.floor(((rect.left + threshold) - x) * 0.8)));
+      wrapEl.scrollLeft = Math.max(0, wrapEl.scrollLeft - speed);
+      scrolled = true;
+    }
+
+    if (scrolled) {
+      this.updateVisibleRows(wrapEl.scrollTop);
+      this.updateDragSelectionFromMouse();
+    }
+  }
+
+  private updateDragSelectionFromMouse() {
+    if (!this.isDraggingRange && !this.isFilling) return;
+    const wrapEl = this.gridWrapRef?.nativeElement || (document.querySelector('.grid-wrap') as HTMLElement);
+    if (!wrapEl) return;
+
+    const rect = wrapEl.getBoundingClientRect();
+    const clampedX = Math.min(Math.max(this.lastDragMouseX, rect.left + 50), rect.right - 20);
+    const clampedY = Math.min(Math.max(this.lastDragMouseY, rect.top + 30), rect.bottom - 20);
+
+    let targetR: number | null = null;
+    let targetC: number | null = null;
+
+    const el = document.elementFromPoint(clampedX, clampedY);
+    const cellEl = el?.closest('[id^="cell-"]') as HTMLElement;
+    if (cellEl && cellEl.id) {
+      const parts = cellEl.id.split('-');
+      const r = parseInt(parts[1], 10);
+      const c = parseInt(parts[2], 10);
+      if (!isNaN(r) && !isNaN(c)) {
+        targetR = r;
+        targetC = c;
+      }
+    }
+
+    if (targetR === null || targetC === null) {
+      const contentY = clampedY - rect.top + wrapEl.scrollTop - 24;
+      let accY = 0;
+      for (let i = 0; i < this.ROWS; i++) {
+        if (this.hiddenRows.has(i)) continue;
+        const h = this.getRowHeight(i) || 24;
+        if (contentY <= accY + h) { targetR = i; break; }
+        accY += h;
+        targetR = i;
+      }
+
+      const contentX = clampedX - rect.left + wrapEl.scrollLeft - 46;
+      let accX = 0;
+      for (let i = 0; i < this.COLS; i++) {
+        const w = this.getColWidth(i) || 100;
+        if (contentX <= accX + w) { targetC = i; break; }
+        accX += w;
+        targetC = i;
+      }
+    }
+
+    if (targetR !== null && targetC !== null) {
+      targetR = Math.min(Math.max(0, targetR), this.ROWS - 1);
+      targetC = Math.min(Math.max(0, targetC), this.COLS - 1);
+
+      let changed = false;
+      if (this.isDraggingRange && this.rangeStart) {
+        if (this.rangeEnd?.r !== targetR || this.rangeEnd?.c !== targetC) {
+          this.rangeEnd = { r: targetR, c: targetC };
+          changed = true;
+        }
+      }
+      if (this.isFilling && this.fillStart) {
+        if (this.fillEnd?.r !== targetR || this.fillEnd?.c !== targetC) {
+          this.fillEnd = { r: targetR, c: targetC };
+          changed = true;
+        }
+      }
+      if (changed && this.cdr) {
+        this.cdr.detectChanges();
+      }
+    }
   }
 
   // ── Range selection helpers ──────────────────────────────────────────────
@@ -7306,16 +7568,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       maxListHeight = Math.min(180, Math.max(100, spaceBelow - 45));
     }
 
+    const isDarkTheme = this.currentTheme === 'dark';
     const overlay = document.createElement('div');
-    overlay.className = 'custom-dropdown-overlay';
+    overlay.className = 'custom-dropdown-overlay ' + (isDarkTheme ? 'theme-dark-dropdown' : 'theme-light-dropdown');
     overlay.style.position = 'fixed';
     overlay.style.top = `${topPos}px`;
     overlay.style.left = `${rect.left}px`;
     overlay.style.width = `${Math.max(rect.width, 160)}px`;
-    overlay.style.background = '#242424';
-    overlay.style.border = '1px solid #3c4043';
+    overlay.style.background = isDarkTheme ? '#242424' : '#ffffff';
+    overlay.style.border = isDarkTheme ? '1px solid #3c4043' : '1px solid #dadce0';
     overlay.style.borderRadius = '8px';
-    overlay.style.boxShadow = '0 8px 24px rgba(0,0,0,0.5)';
+    overlay.style.boxShadow = isDarkTheme ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.15)';
     overlay.style.zIndex = '100000';
     overlay.style.display = 'flex';
     overlay.style.flexDirection = 'column';
@@ -7555,10 +7818,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     if (!goDown && !goUp && !goRight && !goLeft) return;
 
     // snapshot source data + formats
-    const sourceData: { r: number; c: number; val: string; fmt: any }[] = [];
+    const sourceData: { r: number; c: number; val: string; fmt: any; valRule?: any }[] = [];
     for (let r = srcMinR; r <= srcMaxR; r++)
       for (let c = srcMinC; c <= srcMaxC; c++)
-        sourceData.push({ r, c, val: this.cells[r][c], fmt: JSON.parse(JSON.stringify(this.formats[`${r},${c}`] ?? null)) });
+        sourceData.push({ r, c, val: this.cells[r][c], fmt: JSON.parse(JSON.stringify(this.formats[`${r},${c}`] ?? null)), valRule: this.validations[`${r},${c}`] ? JSON.parse(JSON.stringify(this.validations[`${r},${c}`])) : undefined });
 
     // compute fill target bounds
     const dstMinR = goUp ? dstR : (goDown ? srcMaxR + 1 : srcMinR);
@@ -7567,10 +7830,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     const dstMaxC = goLeft ? srcMinC - 1 : (goRight ? dstC : srcMaxC);
 
     // backup target cells
-    const targetBackup: { r: number; c: number; val: string; fmt: any }[] = [];
+    const targetBackup: { r: number; c: number; val: string; fmt: any; valRule?: any }[] = [];
     for (let r = dstMinR; r <= dstMaxR; r++)
       for (let c = dstMinC; c <= dstMaxC; c++)
-        targetBackup.push({ r, c, val: this.cells[r][c], fmt: JSON.parse(JSON.stringify(this.formats[`${r},${c}`] ?? null)) });
+        targetBackup.push({ r, c, val: this.cells[r][c], fmt: JSON.parse(JSON.stringify(this.formats[`${r},${c}`] ?? null)), valRule: this.validations[`${r},${c}`] ? JSON.parse(JSON.stringify(this.validations[`${r},${c}`])) : undefined });
 
     this.pushHistory({
       action_type: 'drag-to-fill',
@@ -7601,7 +7864,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.rangeEnd = { r: newMaxR, c: newMaxC };
     this.selectedRow = newMinR; this.selectedCol = newMinC;
     this.fillEnd = null;
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
 
     // compute popup icon position from last dst cell DOM
@@ -7632,7 +7895,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   ) {
     const getSrc = (r: number, c: number) =>
       this.fillPopupState?.sourceData.find(d => d.r === r && d.c === c) ??
-      { r, c, val: this.cells[r][c], fmt: this.formats[`${r},${c}`] ?? null };
+      { r, c, val: this.cells[r][c], fmt: this.formats[`${r},${c}`] ?? null, valRule: this.validations[`${r},${c}`] ? JSON.parse(JSON.stringify(this.validations[`${r},${c}`])) : undefined };
 
     const srcRows = srcMaxR - srcMinR + 1;
     const srcCols = srcMaxC - srcMinC + 1;
@@ -7648,14 +7911,25 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
             const srcItem = getSrc(srcR, c);
             if (mode === 'Fill Formatting') {
               if (srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+              else delete this.formats[`${r},${c}`];
+              if (srcItem.valRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.valRule));
+              else delete this.validations[`${r},${c}`];
             } else if (mode === 'Copy Cells' || mode === 'Fill Without Formatting') {
               this.cells[r][c] = this._shiftFormula(srcItem.val, r - srcR, 0);
-              if (mode === 'Copy Cells' && srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+              if (mode === 'Copy Cells') {
+                if (srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+                else delete this.formats[`${r},${c}`];
+                if (srcItem.valRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.valRule));
+                else delete this.validations[`${r},${c}`];
+              }
             } else {
               // Fill Series
               const relOffset = reversed ? (r - (srcMinR - 1)) : (r - srcMaxR);
               this.cells[r][c] = this._getNextSeriesEx(srcVals, relOffset, true, ctrlKey);
               if (srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+              else delete this.formats[`${r},${c}`];
+              if (srcItem.valRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.valRule));
+              else delete this.validations[`${r},${c}`];
             }
           }
         };
@@ -7673,13 +7947,24 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
             const srcItem = getSrc(r, srcC);
             if (mode === 'Fill Formatting') {
               if (srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+              else delete this.formats[`${r},${c}`];
+              if (srcItem.valRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.valRule));
+              else delete this.validations[`${r},${c}`];
             } else if (mode === 'Copy Cells' || mode === 'Fill Without Formatting') {
               this.cells[r][c] = this._shiftFormula(srcItem.val, 0, c - srcC);
-              if (mode === 'Copy Cells' && srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+              if (mode === 'Copy Cells') {
+                if (srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+                else delete this.formats[`${r},${c}`];
+                if (srcItem.valRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.valRule));
+                else delete this.validations[`${r},${c}`];
+              }
             } else {
               const relOffset = reversed ? (c - (srcMinC - 1)) : (c - srcMaxC);
               this.cells[r][c] = this._getNextSeriesEx(srcVals, relOffset, false, ctrlKey);
               if (srcItem.fmt) this.formats[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.fmt));
+              else delete this.formats[`${r},${c}`];
+              if (srcItem.valRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcItem.valRule));
+              else delete this.validations[`${r},${c}`];
             }
           }
         };
@@ -7698,11 +7983,15 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       this.cells[b.r][b.c] = b.val;
       if (b.fmt) this.formats[`${b.r},${b.c}`] = JSON.parse(JSON.stringify(b.fmt));
       else delete this.formats[`${b.r},${b.c}`];
+      if (b.valRule) this.validations[`${b.r},${b.c}`] = JSON.parse(JSON.stringify(b.valRule));
+      else delete this.validations[`${b.r},${b.c}`];
     }
     // restore source formatting if needed
     for (const s of p.sourceData) {
       if (s.fmt) this.formats[`${s.r},${s.c}`] = JSON.parse(JSON.stringify(s.fmt));
       else delete this.formats[`${s.r},${s.c}`];
+      if (s.valRule) this.validations[`${s.r},${s.c}`] = JSON.parse(JSON.stringify(s.valRule));
+      else delete this.validations[`${s.r},${s.c}`];
       this.cells[s.r][s.c] = s.val;
     }
 
@@ -7711,7 +8000,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       p.goDown, p.goUp, p.goRight, p.goLeft, mode, p.ctrlKey);
 
     this.fillPopupState = { ...p, mode, showMenu: false };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
   }
 
@@ -11581,13 +11870,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.pushHistory();
     for (let c = minC; c <= maxC; c++) {
       const srcFmt = this.formats[`${minR},${c}`];
+      const srcValRule = this.validations[`${minR},${c}`];
       for (let r = minR + 1; r <= maxR; r++) {
         this.cells[r][c] = this.cells[minR][c];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
+        else delete this.formats[`${r},${c}`];
+        if (srcValRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcValRule));
+        else delete this.validations[`${r},${c}`];
       }
     }
     this.formats = { ...this.formats };
-    this.onCellChange(); this.save();
+    this.onCellChange(undefined, undefined, true); this.save();
     this.showToast('Filled down.');
   }
 
@@ -11603,13 +11896,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.pushHistory();
     for (let r = minR; r <= maxR; r++) {
       const srcFmt = this.formats[`${r},${minC}`];
+      const srcValRule = this.validations[`${r},${minC}`];
       for (let c = minC + 1; c <= maxC; c++) {
         this.cells[r][c] = this.cells[r][minC];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
+        else delete this.formats[`${r},${c}`];
+        if (srcValRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcValRule));
+        else delete this.validations[`${r},${c}`];
       }
     }
     this.formats = { ...this.formats };
-    this.onCellChange(); this.save();
+    this.onCellChange(undefined, undefined, true); this.save();
     this.showToast('Filled right.');
   }
 
@@ -11625,13 +11922,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.pushHistory();
     for (let c = minC; c <= maxC; c++) {
       const srcFmt = this.formats[`${maxR},${c}`];
+      const srcValRule = this.validations[`${maxR},${c}`];
       for (let r = maxR - 1; r >= minR; r--) {
         this.cells[r][c] = this.cells[maxR][c];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
+        else delete this.formats[`${r},${c}`];
+        if (srcValRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcValRule));
+        else delete this.validations[`${r},${c}`];
       }
     }
     this.formats = { ...this.formats };
-    this.onCellChange(); this.save();
+    this.onCellChange(undefined, undefined, true); this.save();
     this.showToast('Filled up.');
   }
 
@@ -11647,13 +11948,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.pushHistory();
     for (let r = minR; r <= maxR; r++) {
       const srcFmt = this.formats[`${r},${maxC}`];
+      const srcValRule = this.validations[`${r},${maxC}`];
       for (let c = maxC - 1; c >= minC; c--) {
         this.cells[r][c] = this.cells[r][maxC];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
+        else delete this.formats[`${r},${c}`];
+        if (srcValRule) this.validations[`${r},${c}`] = JSON.parse(JSON.stringify(srcValRule));
+        else delete this.validations[`${r},${c}`];
       }
     }
     this.formats = { ...this.formats };
-    this.onCellChange(); this.save();
+    this.onCellChange(undefined, undefined, true); this.save();
     this.showToast('Filled left.');
   }
 
