@@ -11,7 +11,7 @@ import { GiphyService } from '../../services/giphy.service';
   template: `
     <div class="media-picker-container" [class.dark]="darkMode" (click)="$event.stopPropagation()">
       <!-- Tabs -->
-      <div class="mp-tabs">
+      <div class="mp-tabs" *ngIf="!onlyEmojis">
         <button class="mp-tab" [class.active]="activeTab === 'emoji'" (click)="activeTab = 'emoji'">
           <span class="material-symbols-outlined">mood</span> Emojis
         </button>
@@ -89,8 +89,12 @@ import { GiphyService } from '../../services/giphy.service';
     ::ng-deep .emoji-mart-emoji[aria-label*="otted" i],
     ::ng-deep .emoji-mart-emoji[title*="xhaling" i],
     ::ng-deep .emoji-mart-emoji[aria-label*="xhaling" i],
-    ::ng-deep .emoji-mart-emoji[title*="piral" i],
-    ::ng-deep .emoji-mart-emoji[aria-label*="piral" i],
+    ::ng-deep .emoji-mart-emoji[title*="eart on fire" i],
+    ::ng-deep .emoji-mart-emoji[aria-label*="eart on fire" i],
+    ::ng-deep .emoji-mart-emoji[title*="ending heart" i],
+    ::ng-deep .emoji-mart-emoji[aria-label*="ending heart" i],
+    ::ng-deep .emoji-mart-emoji[title*="piral eyes" i],
+    ::ng-deep .emoji-mart-emoji[aria-label*="piral eyes" i],
     ::ng-deep .emoji-mart-emoji[title*="black cat" i],
     ::ng-deep .emoji-mart-emoji[aria-label*="black cat" i],
     ::ng-deep .emoji-mart-emoji[title*="black_cat" i],
@@ -108,6 +112,7 @@ import { GiphyService } from '../../services/giphy.service';
 })
 export class MediaPickerComponent implements OnInit {
   @Input() darkMode = false;
+  @Input() onlyEmojis = false;
   @Input() pickerHeight = '250px';
   @Input() gridHeight = '200px';
 

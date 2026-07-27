@@ -158,67 +158,67 @@ export class ApiService implements OnDestroy {
   }
 
   getChatChannels(): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/channels/`);
+    return this.http.get<any[]>(`${this.base}/chat/channels`);
   }
 
   searchChannels(query: string): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/channels/all`).pipe(
-      map(channels => channels.filter(c => c.name.toLowerCase().includes(query.toLowerCase())))
-    );
+    return this.http.get<any[]>(`${this.base}/chat/search-channels?q=${encodeURIComponent(query)}`);
   }
 
   getChannelMessages(channelId: number): Observable<any> {
-    return this.http.get<any>(`${this.base}/channels/${channelId}/messages`);
+    return this.http.get<any>(`${this.base}/chat/channels/${channelId}/messages`);
   }
 
   getChannelInfo(channelId: number): Observable<any> {
-    return this.http.get<any>(`${this.base}/channels/${channelId}/info`);
+    return this.http.get<any>(`${this.base}/chat/channels/${channelId}/info`);
   }
 
   getChannelMembers(channelId: number): Observable<any[]> {
-    return this.http.get<any[]>(`${this.base}/channels/${channelId}/members`);
+    return this.http.get<any>(`${this.base}/chat/channels/${channelId}/info`).pipe(
+      map(info => info.members || [])
+    );
   }
 
   updateChannel(channelId: number, name: string, description: string): Observable<any> {
-    return this.http.put<any>(`${this.base}/channels/${channelId}`, { name, description });
+    return this.http.put<any>(`${this.base}/chat/channels/${channelId}`, { name, description });
   }
 
   deleteChannel(channelId: number): Observable<any> {
-    return this.http.delete<any>(`${this.base}/channels/${channelId}`);
+    return this.http.delete<any>(`${this.base}/chat/channels/${channelId}`);
   }
 
   addChannelMembers(channelId: number, userIds: number[]): Observable<any> {
-    return this.http.post<any>(`${this.base}/channels/${channelId}/members`, { user_ids: userIds });
+    return this.http.post<any>(`${this.base}/chat/channels/${channelId}/members`, { user_ids: userIds });
   }
 
   removeChannelMember(channelId: number, userId: number): Observable<any> {
-    return this.http.delete<any>(`${this.base}/channels/${channelId}/members/${userId}`);
+    return this.http.delete<any>(`${this.base}/chat/channels/${channelId}/members/${userId}`);
   }
 
   setChannelAdmin(channelId: number, userId: number, isAdmin: boolean): Observable<any> {
-    return this.http.put<any>(`${this.base}/channels/${channelId}/members/${userId}/admin`, { is_admin: isAdmin ? 1 : 0 });
+    return this.http.put<any>(`${this.base}/chat/channels/${channelId}/members/${userId}/admin`, { is_admin: isAdmin ? 1 : 0 });
   }
 
   leaveChannel(channelId: number): Observable<any> {
-    return this.http.post<any>(`${this.base}/channels/${channelId}/leave`, {});
+    return this.http.post<any>(`${this.base}/chat/channels/${channelId}/leave`, {});
   }
 
   sendChannelMessage(channelId: number, message: string, is_file: boolean = false, file_path: string | null = null): Observable<any> {
-    return this.http.post<any>(`${this.base}/channels/${channelId}/messages`, { message, is_file, file_path });
+    return this.http.post<any>(`${this.base}/chat/channels/${channelId}/send`, { message, is_file, file_path });
   }
 
   deleteChannelMessage(channelId: number, messageId: number): Observable<any> {
-    return this.http.post<any>(`${this.base}/channels/messages/${messageId}/delete`, {});
+    return this.http.delete<any>(`${this.base}/chat/channels/${channelId}/messages/${messageId}`);
   }
 
   reactToChannelMessage(channelId: number, messageId: number, emoji: string): Observable<any> {
-    return this.http.post<any>(`${this.base}/channels/messages/${messageId}/react`, { reaction: emoji });
+    return this.http.put<any>(`${this.base}/chat/channels/${channelId}/messages/${messageId}/react`, { emoji });
   }
 
 
 
   createChannel(name: string, description: string): Observable<any> {
-    return this.http.post<any>(`${this.base}/channels/`, { name, description });
+    return this.http.post<any>(`${this.base}/chat/channels`, { name, description });
   }
 
   connectSync(docId: string): Observable<SyncMessage> {

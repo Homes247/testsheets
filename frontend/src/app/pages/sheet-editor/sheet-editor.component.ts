@@ -9308,11 +9308,13 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       return;
     }
     this.isEditingCell = true;
-    this.editValue = initialValue !== undefined ? initialValue : this.cells[this.selectedRow][this.selectedCol];
+    const isImg = this.isImageCell(this.selectedRow, this.selectedCol);
+    const currentVal = this.cells[this.selectedRow]?.[this.selectedCol] || '';
+    this.editValue = initialValue !== undefined ? initialValue : (isImg ? '' : currentVal);
     setTimeout(() => {
       if (this.floatingEditor) {
         this.floatingEditor.nativeElement.focus();
-        const len = this.editValue.length;
+        const len = (this.editValue || '').length;
         this.floatingEditor.nativeElement.setSelectionRange(len, len);
         this.autoResizeEditor();
       }
@@ -9321,6 +9323,11 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   commitEdit() {
     if (!this.isEditingCell) return;
+    const wasImg = this.isImageCell(this.selectedRow, this.selectedCol);
+    if (wasImg && (this.editValue || '').trim() === '') {
+      this.isEditingCell = false;
+      return;
+    }
     this.pushHistory(); // <-- Capture baseline before mutation for Undo and Audit Diff
     this.cells[this.selectedRow][this.selectedCol] = this.editValue;
     this.formulaBarValue = this.editValue;
@@ -9381,6 +9388,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   }
 
   onFormulaBarChange(val: string) {
+    if (this.isImageCell(this.selectedRow, this.selectedCol) && (val === '[IMAGE]' || !val || val.trim() === '')) {
+      return;
+    }
     if (this.cells[this.selectedRow][this.selectedCol] !== val) {
       this.pushHistory(); // <-- Capture baseline before mutation for Undo and Audit Diff
       this.cells[this.selectedRow][this.selectedCol] = val;
@@ -9389,6 +9399,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   }
 
   commitFormula() {
+    if (this.isImageCell(this.selectedRow, this.selectedCol) && (this.formulaBarValue === '[IMAGE]' || !this.formulaBarValue || this.formulaBarValue.trim() === '')) {
+      return;
+    }
     this.cells[this.selectedRow][this.selectedCol] = this.formulaBarValue;
     this.onCellChange();
   }

@@ -52,7 +52,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                 <span class="cli-time">{{ formatTime(c.last_time) }}</span>
               </div>
               <div class="cli-preview" [style.color]="isSelf(c.other_user.id) ? '#10b981' : 'var(--text-secondary)'" [style.font-style]="isSelf(c.other_user.id) ? 'italic' : 'normal'">
-                <span [innerHTML]="isSelf(c.other_user.id) ? 'Personal Space' : linkify(cleanMessage(c.last_message || 'No messages yet'))"></span>
+                <span>{{ isSelf(c.other_user.id) ? 'Personal Space' : (getPreviewText(c.last_message) || 'No messages yet') }}</span>
               </div>
             </div>
             <div *ngIf="c.unread > 0" style="background:#ef4444; color:white; font-size:10px; font-weight:bold; border-radius:10px; padding:2px 6px; margin-left:8px;">{{c.unread}}</div>
@@ -173,17 +173,28 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                     </div>
                                 </ng-container>
                             </div>
-                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id">
-                                <span *ngFor="let emoji of ['👍','❤️','😂','😲','😢','😡']" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
-                                <span class="material-symbols-outlined" style="font-size:14px; cursor:pointer;" (click)="closeReactionPopover($event)">close</span>
+                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id" (click)="$event.stopPropagation()">
+                                <span *ngFor="let emoji of reactionTabEmojis" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="More Emojis" (click)="openReactionEmojiPicker(msg, $event); $event.stopPropagation()">add_reaction</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="Close" (click)="closeReactionPopover($event); $event.stopPropagation()">close</span>
+                            </div>
+                            <div *ngIf="reactingEmojiPickerId === msg.id" class="reaction-emoji-picker-popup" (click)="$event.stopPropagation()">
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 8px; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Select Emoji</span>
+                                    <span class="material-symbols-outlined" style="font-size: 16px; cursor: pointer; color: var(--text-secondary);" title="Close" (click)="closeReactionPopover($event)">close</span>
+                                </div>
+                                <app-media-picker [onlyEmojis]="true" [pickerHeight]="'190px'" [darkMode]="false" (emojiSelect)="onReactionEmojiSelect($event, msg)"></app-media-picker>
                             </div>
                             <div class="msg-reactions-display" *ngIf="getReactionsList(msg).length > 0">
                                 <span *ngFor="let r of getReactionsList(msg)" (click)="addReaction(msg, r.split(' ')[0])">{{ r }}</span>
                             </div>
                         </div>
-                        <div *ngIf="msg.is_file" (click)="openFile(msg.file_path, msg.message, msg, false)" [ngClass]="isImage(msg.message || msg.file_path) ? 'msg-image-wrapper' : 'msg-file-card'">
+                        <div *ngIf="msg.is_file" (click)="openFile(msg.file_path, msg.message, msg, false)" [ngClass]="(isImage(msg.message || msg.file_path) || isVideo(msg.message || msg.file_path)) ? 'msg-image-wrapper' : 'msg-file-card'">
                             <img *ngIf="isImage(msg.message || msg.file_path)" [src]="getFileUrl(msg.file_path)" class="chat-image-preview" (error)="$event.stopPropagation()">
-                            <ng-container *ngIf="!isImage(msg.message || msg.file_path)">
+                            <div *ngIf="isVideo(msg.message || msg.file_path)" class="chat-video-preview" (click)="$event.stopPropagation()">
+                                <video [src]="getFileUrl(msg.file_path)" controls preload="metadata" style="max-width: 280px; max-height: 280px; border-radius: 8px; display: block; background: #000; width: 100%;"></video>
+                            </div>
+                            <ng-container *ngIf="!isImage(msg.message || msg.file_path) && !isVideo(msg.message || msg.file_path)">
                                 <div class="ac-icon">
                                     <span *ngIf="!msg.isUploading" class="material-symbols-outlined">description</span>
                                     <div *ngIf="msg.isUploading" class="upload-spinner"></div>
@@ -208,9 +219,17 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                     </div>
                                 </ng-container>
                             </div>
-                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id">
-                                <span *ngFor="let emoji of ['👍','❤️','😂','😲','😢','😡']" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
-                                <span class="material-symbols-outlined" style="font-size:14px; cursor:pointer;" (click)="closeReactionPopover($event)">close</span>
+                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id" (click)="$event.stopPropagation()">
+                                <span *ngFor="let emoji of reactionTabEmojis" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="More Emojis" (click)="openReactionEmojiPicker(msg, $event); $event.stopPropagation()">add_reaction</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="Close" (click)="closeReactionPopover($event); $event.stopPropagation()">close</span>
+                            </div>
+                            <div *ngIf="reactingEmojiPickerId === msg.id" class="reaction-emoji-picker-popup" (click)="$event.stopPropagation()">
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 8px; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Select Emoji</span>
+                                    <span class="material-symbols-outlined" style="font-size: 16px; cursor: pointer; color: var(--text-secondary);" title="Close" (click)="closeReactionPopover($event)">close</span>
+                                </div>
+                                <app-media-picker [onlyEmojis]="true" [pickerHeight]="'190px'" [darkMode]="false" (emojiSelect)="onReactionEmojiSelect($event, msg)"></app-media-picker>
                             </div>
                             <div class="msg-reactions-display" *ngIf="getReactionsList(msg).length > 0">
                                 <span *ngFor="let r of getReactionsList(msg)" (click)="addReaction(msg, r.split(' ')[0])">{{ r }}</span>
@@ -297,7 +316,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                 <span class="cli-name">{{ c.name }}</span>
                 <span class="cli-time">{{ formatTime(c.last_time) }}</span>
               </div>
-              <div class="cli-preview" [innerHTML]="linkify(cleanMessage(c.last_message)) || 'No messages'"></div>
+              <div class="cli-preview">{{ getPreviewText(c.last_message) || 'No messages' }}</div>
             </div>
           </div>
           <div *ngIf="channels.length === 0 && !searchQuery" style="padding: 20px; text-align:center; color:var(--text-secondary); font-size:13px;">
@@ -405,17 +424,28 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                     </div>
                                 </ng-container>
                             </div>
-                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id">
-                                <span *ngFor="let emoji of ['👍','❤️','😂','😲','😢','😡']" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
-                                <span class="material-symbols-outlined" style="font-size:14px; cursor:pointer;" (click)="closeReactionPopover($event)">close</span>
+                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id" (click)="$event.stopPropagation()">
+                                <span *ngFor="let emoji of reactionTabEmojis" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="More Emojis" (click)="openReactionEmojiPicker(msg, $event); $event.stopPropagation()">add_reaction</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="Close" (click)="closeReactionPopover($event); $event.stopPropagation()">close</span>
+                            </div>
+                            <div *ngIf="reactingEmojiPickerId === msg.id" class="reaction-emoji-picker-popup" (click)="$event.stopPropagation()">
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 8px; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Select Emoji</span>
+                                    <span class="material-symbols-outlined" style="font-size: 16px; cursor: pointer; color: var(--text-secondary);" title="Close" (click)="closeReactionPopover($event)">close</span>
+                                </div>
+                                <app-media-picker [onlyEmojis]="true" [pickerHeight]="'190px'" [darkMode]="false" (emojiSelect)="onReactionEmojiSelect($event, msg)"></app-media-picker>
                             </div>
                             <div class="msg-reactions-display" *ngIf="getReactionsList(msg).length > 0">
                                 <span *ngFor="let r of getReactionsList(msg)" (click)="addReaction(msg, r.split(' ')[0])">{{ r }}</span>
                             </div>
                         </div>
-                        <div *ngIf="msg.is_file" (click)="openFile(msg.file_path, msg.message, msg, true)" [ngClass]="isImage(msg.message || msg.file_path) ? 'msg-image-wrapper' : 'msg-file-card'">
+                        <div *ngIf="msg.is_file" (click)="openFile(msg.file_path, msg.message, msg, true)" [ngClass]="(isImage(msg.message || msg.file_path) || isVideo(msg.message || msg.file_path)) ? 'msg-image-wrapper' : 'msg-file-card'">
                             <img *ngIf="isImage(msg.message || msg.file_path)" [src]="getFileUrl(msg.file_path)" class="chat-image-preview" (error)="$event.stopPropagation()">
-                            <ng-container *ngIf="!isImage(msg.message || msg.file_path)">
+                            <div *ngIf="isVideo(msg.message || msg.file_path)" class="chat-video-preview" (click)="$event.stopPropagation()">
+                                <video [src]="getFileUrl(msg.file_path)" controls preload="metadata" style="max-width: 280px; max-height: 280px; border-radius: 8px; display: block; background: #000; width: 100%;"></video>
+                            </div>
+                            <ng-container *ngIf="!isImage(msg.message || msg.file_path) && !isVideo(msg.message || msg.file_path)">
                                 <div class="ac-icon">
                                     <span *ngIf="!msg.isUploading" class="material-symbols-outlined">description</span>
                                     <div *ngIf="msg.isUploading" class="upload-spinner"></div>
@@ -440,9 +470,17 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                     </div>
                                 </ng-container>
                             </div>
-                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id">
-                                <span *ngFor="let emoji of ['👍','❤️','😂','😲','😢','😡']" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
-                                <span class="material-symbols-outlined" style="font-size:14px; cursor:pointer;" (click)="closeReactionPopover($event)">close</span>
+                            <div class="msg-reaction-popover" *ngIf="reactingMessageId === msg.id" (click)="$event.stopPropagation()">
+                                <span *ngFor="let emoji of reactionTabEmojis" (click)="addReaction(msg, emoji); $event.stopPropagation()">{{ emoji }}</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="More Emojis" (click)="openReactionEmojiPicker(msg, $event); $event.stopPropagation()">add_reaction</span>
+                                <span class="material-symbols-outlined" style="font-size:16px; cursor:pointer; color:var(--text-secondary);" title="Close" (click)="closeReactionPopover($event); $event.stopPropagation()">close</span>
+                            </div>
+                            <div *ngIf="reactingEmojiPickerId === msg.id" class="reaction-emoji-picker-popup" (click)="$event.stopPropagation()">
+                                <div style="display:flex; justify-content:space-between; align-items:center; padding: 4px 8px; background: var(--bg-color); border-bottom: 1px solid var(--border-color);">
+                                    <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary);">Select Emoji</span>
+                                    <span class="material-symbols-outlined" style="font-size: 16px; cursor: pointer; color: var(--text-secondary);" title="Close" (click)="closeReactionPopover($event)">close</span>
+                                </div>
+                                <app-media-picker [onlyEmojis]="true" [pickerHeight]="'190px'" [darkMode]="false" (emojiSelect)="onReactionEmojiSelect($event, msg)"></app-media-picker>
                             </div>
                             <div class="msg-reactions-display" *ngIf="getReactionsList(msg).length > 0">
                                 <span *ngFor="let r of getReactionsList(msg)" (click)="addReaction(msg, r.split(' ')[0])">{{ r }}</span>
@@ -548,7 +586,8 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
           </div>
           
           <div class="image-preview-content" (click)="$event.stopPropagation()" (wheel)="onPreviewWheel($event)">
-              <img [src]="previewImageUrl" class="preview-full-image" [style.transform]="'scale(' + previewZoomLevel + ')'">
+              <img *ngIf="isImage(previewImageUrl) || !isVideo(previewImageUrl)" [src]="previewImageUrl" class="preview-full-image" [style.transform]="'scale(' + previewZoomLevel + ')'">
+              <video *ngIf="isVideo(previewImageUrl)" [src]="previewImageUrl" controls autoplay class="preview-full-image" style="max-height: 85vh; max-width: 85vw; background: #000; border-radius: 8px;" [style.transform]="'scale(' + previewZoomLevel + ')'"></video>
           </div>
           
           <div class="preview-nav-right" *ngIf="hasNextImage()" (click)="nextImage(); $event.stopPropagation()">
@@ -771,15 +810,24 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
     .msg-hover-actions span:hover { background: var(--hover-bg); border-radius: 4px; }
     
     .msg-reaction-popover {
-        position: absolute; top: -35px; background: var(--bg-color);
+        position: absolute; top: -35px; background: var(--bg-color); color: var(--text-primary);
         border: 1px solid var(--border-color); border-radius: 20px;
-        padding: 4px 8px; display: flex; gap: 6px; z-index: 10;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1); align-items: center;
+        padding: 4px 8px; display: flex; gap: 6px; z-index: 50;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15); align-items: center;
+        width: max-content; white-space: nowrap;
     }
     .msg-row.mine .msg-reaction-popover { right: 0; }
     .msg-row.other .msg-reaction-popover { left: 0; }
-    .msg-reaction-popover span { cursor: pointer; font-size: 16px; transition: transform 0.1s; display: inline-flex; align-items: center;}
+    .msg-reaction-popover span { cursor: pointer; font-size: 16px; transition: transform 0.1s; display: inline-flex; align-items: center; flex-shrink: 0; color: var(--text-primary); }
     .msg-reaction-popover span:hover { transform: scale(1.2); }
+    .reaction-emoji-picker-popup {
+        position: absolute; top: -260px; z-index: 100;
+        width: 260px; height: 220px; background: var(--bg-color);
+        border: 1px solid var(--border-color); border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.25); overflow: hidden;
+    }
+    .msg-row.mine .reaction-emoji-picker-popup { right: 0; }
+    .msg-row.other .reaction-emoji-picker-popup { left: 0; }
     .msg-reactions-display {
         position: absolute; bottom: -12px; right: 8px; background: var(--bg-color);
         border: 1px solid var(--border-color); border-radius: 12px;
@@ -814,7 +862,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
     .cli-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px; }
     .cli-name { font-size: 14px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .cli-time { font-size: 11px; color: var(--text-secondary); flex-shrink: 0; margin-left: 8px; }
-    .cli-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cli-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 18px; line-height: 18px; display: block; }
     
     .chat-body-area { position: relative; padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; background: var(--body-bg); overflow-y: auto; }
     
@@ -1059,6 +1107,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
   stagedFile: File | null = null;
   deletingMessageId: any = null;
   reactingMessageId: any = null;
+  reactingEmojiPickerId: any = null;
+  reactionTabEmojis: string[] = ['👍', '❤️', '😂', '😲', '😢', '😡'];
   
   editingMessageId: any = null;
   editingMessageText: string = '';
@@ -1462,7 +1512,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
                   id: tempId,
                   is_mine: true,
                   is_file: true,
-                  file_path: '',
+                  file_path: URL.createObjectURL(file),
                   message: file.name,
                   created_at: new Date().toISOString(),
                   isUploading: true
@@ -1498,7 +1548,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
                   id: tempId,
                   is_mine: true,
                   is_file: true,
-                  file_path: '',
+                  file_path: URL.createObjectURL(file),
                   message: file.name,
                   created_at: new Date().toISOString(),
                   isUploading: true
@@ -1562,6 +1612,12 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
   cleanMessage(text: string | null | undefined): string {
       if (!text) return '';
       return text.replace(/\[REPLY_META:[\s\S]*?\]\n?/g, '').replace(/\[Reply:[\s\S]*?\]\n?/g, '');
+  }
+
+  getPreviewText(text: string | null | undefined): string {
+      if (!text) return '';
+      const clean = this.cleanMessage(text);
+      return clean.replace(/\r?\n|\r/g, ' ').trim();
   }
 
   linkify(text: string): string {
@@ -1724,12 +1780,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   getFileUrl(path: string): string {
       if (!path) return '#';
+      if (path.startsWith('data:') || path.startsWith('blob:')) return path;
       if (path.includes('/chat/download?path=')) return path;
       return `${environment.apiUrl}/chat/download?path=${encodeURIComponent(path)}`;
   }
 
   openFile(path: string, originalName?: string, msg?: any, isChannel?: boolean) {
-      if (msg && (this.isImage(path) || this.isImage(originalName))) {
+      if (msg && (this.isImage(path) || this.isImage(originalName) || this.isVideo(path) || this.isVideo(originalName))) {
           this.openImagePreview(msg, !!isChannel);
           return;
       }
@@ -1741,7 +1798,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   openImagePreview(msg: any, isChannel: boolean) {
       const list = isChannel ? this.channelMessages : this.messages;
-      this.previewImagesList = list.filter(m => m.is_file && (this.isImage(m.file_path) || this.isImage(m.message)));
+      this.previewImagesList = list.filter(m => m.is_file && (this.isImage(m.file_path) || this.isImage(m.message) || this.isVideo(m.file_path) || this.isVideo(m.message)));
       this.previewCurrentIndex = this.previewImagesList.findIndex(m => m.id === msg.id);
       
       this.previewZoomLevel = 1;
@@ -1796,10 +1853,23 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
       this.previewZoomLevel = 1;
   }
 
+  cleanPathExtension(path: string | undefined): string {
+      if (!path) return '';
+      try { path = decodeURIComponent(path).toLowerCase(); } catch { path = path.toLowerCase(); }
+      const matches = path.match(/\.([a-z0-9]{2,5})(?:[?&#]|$)/g);
+      if (!matches || matches.length === 0) return '';
+      const lastMatch = matches[matches.length - 1];
+      return lastMatch.replace(/[^a-z0-9]/g, '');
+  }
+
   isImage(path: string | undefined): boolean {
-      if (!path) return false;
-      const ext = path.split('.').pop()?.toLowerCase();
-      return !!ext && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext);
+      const ext = this.cleanPathExtension(path);
+      return !!ext && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'].includes(ext);
+  }
+
+  isVideo(path: string | undefined): boolean {
+      const ext = this.cleanPathExtension(path);
+      return !!ext && ['mp4', 'webm', 'ogg', 'mov', 'mkv', 'avi', 'm4v', '3gp'].includes(ext);
   }
 
   downloadMessage(msg: any, event?: Event) {
@@ -1881,6 +1951,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   reactToMessage(msg: any, event?: Event) {
       if (event) { event.preventDefault(); event.stopPropagation(); }
+      this.reactingEmojiPickerId = null;
       this.reactingMessageId = msg.id;
   }
 
@@ -1890,6 +1961,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
               next: (res) => {
                   msg.reactions = res.reactions;
                   this.reactingMessageId = null;
+                  this.reactingEmojiPickerId = null;
               },
               error: err => console.error(err)
           });
@@ -1898,10 +1970,30 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
               next: (res) => {
                   msg.reactions = res.reactions;
                   this.reactingMessageId = null;
+                  this.reactingEmojiPickerId = null;
               },
               error: err => console.error(err)
           });
       }
+  }
+
+  openReactionEmojiPicker(msg: any, event?: Event) {
+      if (event) { event.preventDefault(); event.stopPropagation(); }
+      if (this.reactingEmojiPickerId === msg.id) {
+          this.reactingEmojiPickerId = null;
+      } else {
+          this.reactingEmojiPickerId = msg.id;
+      }
+  }
+
+  onReactionEmojiSelect(emoji: string, msg: any) {
+      this.addReaction(msg, emoji);
+      if (!this.reactionTabEmojis.includes(emoji)) {
+          this.reactionTabEmojis.pop();
+          this.reactionTabEmojis.unshift(emoji);
+      }
+      this.reactingEmojiPickerId = null;
+      this.reactingMessageId = null;
   }
 
   getReactionsList(msg: any): string[] {
@@ -1918,6 +2010,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
 
   closeReactionPopover(event?: Event) {
       if (event) { event.preventDefault(); event.stopPropagation(); }
+      this.reactingEmojiPickerId = null;
       this.reactingMessageId = null;
   }
 
@@ -2123,10 +2216,21 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: Event) {
       this.showEmojiPicker = false;
+      this.reactingEmojiPickerId = null;
+      this.reactingMessageId = null;
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  onEscape(event: KeyboardEvent) {
+      this.showEmojiPicker = false;
+      this.reactingEmojiPickerId = null;
+      this.reactingMessageId = null;
   }
 
   onPanelClick(event: Event) {
       event.stopPropagation();
       this.showEmojiPicker = false;
+      this.reactingEmojiPickerId = null;
+      this.reactingMessageId = null;
   }
 }

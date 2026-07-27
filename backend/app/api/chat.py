@@ -188,6 +188,7 @@ async def get_messages(other_user_id: int, db: AsyncSession = Depends(get_db), c
                 "is_mine": m.sender_id == current_user.id,
                 "is_file": bool(m.is_file),
                 "file_path": m.file_path,
+                "reactions": getattr(m, 'reactions', None),
                 "created_at": to_utc_iso(m.created_at),
                 "is_read": bool(m.is_read)
             })
@@ -429,6 +430,9 @@ async def get_channel_messages(channel_id: int, db: AsyncSession = Depends(get_d
             "sender_avatar_url": getattr(sender, 'avatar_url', None) if sender else None,
             "message": m.message,
             "is_mine": m.sender_id == current_user.id,
+            "is_file": bool(getattr(m, 'is_file', False)),
+            "file_path": getattr(m, 'file_path', None),
+            "reactions": getattr(m, 'reactions', None),
             "created_at": to_utc_iso(m.created_at)
         })
         
@@ -437,6 +441,21 @@ async def get_channel_messages(channel_id: int, db: AsyncSession = Depends(get_d
         "channel_name": channel.name,
         "messages": msgs_response
     }
+
+class CreateChannelRequest(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+@router.post("/channels")
+async def create_channel(data: CreateChannelRequest, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
+    channel = Channel(name=data.name, description=data.description, owner_id=current_user.id)
+    db.add(channel)
+    await db.commit()
+    await db.refresh(channel)
+    cm = ChannelMember(channel_id=channel.id, user_id=current_user.id, role='admin')
+    db.add(cm)
+    await db.commit()
+    return {"id": channel.id, "name": channel.name, "description": getattr(channel, 'description', '')}
 
 class UpdateChannelRequest(BaseModel):
     name: str
@@ -705,19 +724,42 @@ async def upload_stream_channel(
 async def download_file(path: str, filename: str = None, db: AsyncSession = Depends(get_db)):
     try:
         key = path
-        prefix = f"{R2_ENDPOINT_URL}/{R2_BUCKET_NAME}/"
-        if path.startswith(prefix):
-            key = path[len(prefix):]
+        prefix1 = f"{R2_ENDPOINT_URL}/{R2_BUCKET_NAME}/"
+        prefix2 = f"{R2_ENDPOINT_URL}/"
+        if path.startswith(prefix1):
+            key = path[len(prefix1):]
+        elif path.startswith(prefix2):
+            key = path[len(prefix2):]
+            if key.startswith(f"{R2_BUCKET_NAME}/"):
+                key = key[len(f"{R2_BUCKET_NAME}/"):]
+        elif path.startswith("http") and f"/{R2_BUCKET_NAME}/" in path:
+            idx = path.find(f"/{R2_BUCKET_NAME}/")
+            key = path[idx + len(f"/{R2_BUCKET_NAME}/"):]
         elif path.startswith("http"):
             return RedirectResponse(url=path)
             
-        # Legacy chat files were saved as 'user_...' in DB but stored as 'chat/user_...' in R2
-        if key.startswith("user_"):
-            key = f"chat/{key}"
+        from botocore.exceptions import ClientError
+        candidate_keys = []
+        if key.startswith("chat/") or key.startswith("channels/") or key.startswith("attachments/"):
+            candidate_keys = [key]
+        elif key.startswith("user_"):
+            candidate_keys = [f"chat/{key}", f"channels/{key}", key, f"attachments/{key}"]
+        else:
+            candidate_keys = [key, f"chat/{key}", f"channels/{key}", f"attachments/{key}"]
+            
+        resolved_key = key
+        for cand in candidate_keys:
+            try:
+                _s3_client.head_object(Bucket=R2_BUCKET_NAME, Key=cand)
+                resolved_key = cand
+                break
+            except Exception:
+                continue
         
-        params = {'Bucket': R2_BUCKET_NAME, 'Key': key}
+        params = {'Bucket': R2_BUCKET_NAME, 'Key': resolved_key}
         if filename:
-            params['ResponseContentDisposition'] = f'attachment; filename="{filename}"'
+            safe_fname = "".join(c for c in filename if c.isalnum() or c in "._- ()[]").strip() or "download"
+            params['ResponseContentDisposition'] = f'attachment; filename="{safe_fname}"'
             
         presigned_url = _s3_client.generate_presigned_url(
             'get_object',

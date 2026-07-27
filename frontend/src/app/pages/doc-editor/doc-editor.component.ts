@@ -3087,6 +3087,8 @@ export class DocEditorComponent implements OnInit, OnDestroy {
         this.showToast(`Comment: ${comment}`);
       }
     }
+    this.showDocMediaReactions = false;
+    this.showDocEmojiPickerModal = false;
   };
   
   goHome() {
@@ -3695,9 +3697,13 @@ export class DocEditorComponent implements OnInit, OnDestroy {
   onVideoUpload(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      const html = `<div contenteditable="false" style="display: inline-block; margin: 10px 0;"><video controls src="${url}" style="width: 100%; max-width: 500px;"></video></div><br>`;
-      document.execCommand('insertHTML', false, html);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const html = `<div class="doc-media-wrapper" contenteditable="false" style="display: inline-block; margin: 10px 0; position: relative;"><video controls src="${dataUrl}" style="width: 100%; max-width: 500px; border-radius: 8px;"></video></div><br>`;
+        document.execCommand('insertHTML', false, html);
+      };
+      reader.readAsDataURL(file);
     }
     (event.target as HTMLInputElement).value = '';
   }
@@ -3705,9 +3711,13 @@ export class DocEditorComponent implements OnInit, OnDestroy {
   onAudioUpload(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (file) {
-      const url = URL.createObjectURL(file);
-      const html = `<div contenteditable="false" style="display: inline-block; margin: 10px 0;"><audio controls src="${url}" style="width: 100%; max-width: 300px;"></audio></div><br>`;
-      document.execCommand('insertHTML', false, html);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const html = `<div class="doc-media-wrapper" contenteditable="false" style="display: inline-block; margin: 10px 0; position: relative;"><audio controls src="${dataUrl}" style="width: 100%; max-width: 300px; border-radius: 8px;"></audio></div><br>`;
+        document.execCommand('insertHTML', false, html);
+      };
+      reader.readAsDataURL(file);
     }
     (event.target as HTMLInputElement).value = '';
   }
@@ -5006,14 +5016,14 @@ export class DocEditorComponent implements OnInit, OnDestroy {
       }, 10);
     }
 
-    if (target.tagName === 'IMG' || target.classList.contains('vmail-text-box') || target.closest('.vmail-text-box')) {
+    if (target.tagName === 'IMG' || target.tagName === 'VIDEO' || target.tagName === 'AUDIO' || target.classList.contains('vmail-text-box') || target.closest('.vmail-text-box')) {
       const actualTarget = target.classList.contains('vmail-text-box') ? target : target.closest('.vmail-text-box') as HTMLElement || target;
       e.preventDefault(); // Prevent native drag-and-drop
       
       this.selectedObject = actualTarget as HTMLElement;
       
       // Do not select the image text node, so pressing Space does not delete it
-      if (this.selectedObject.tagName !== 'IMG') {
+      if (this.selectedObject.tagName !== 'IMG' && this.selectedObject.tagName !== 'VIDEO' && this.selectedObject.tagName !== 'AUDIO') {
         const sel = window.getSelection();
         if (sel) {
           const range = document.createRange();
@@ -5689,5 +5699,81 @@ export class DocEditorComponent implements OnInit, OnDestroy {
     this.syncSub?.unsubscribe();
     this.api.disconnectSync();
   }
+  // -- Media and Reaction methods --
+  docReactionEmojis = ['👍', '❤️', '😂', '😲', '😢', '😡'];
+  showDocMediaReactions = false;
+  showDocEmojiPickerModal = false;
+
+  downloadSelectedMedia() {
+    if (!this.selectedObject) return;
+    const src = this.selectedObject.getAttribute('src');
+    if (!src) return;
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = 'media_file';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  toggleDocMediaReactions(event: Event) {
+    event.stopPropagation();
+    this.showDocMediaReactions = !this.showDocMediaReactions;
+    this.showDocEmojiPickerModal = false;
+  }
+
+  addDocMediaReaction(emoji: string) {
+    if (!this.selectedObject) return;
+    const parent = this.selectedObject.parentElement;
+    if (parent && parent.classList.contains('doc-media-wrapper')) {
+       // Insert badge if missing, or update
+       let badge = parent.querySelector('.media-reaction-badge');
+       if (!badge) {
+           badge = document.createElement('div');
+           badge.className = 'media-reaction-badge';
+           badge.setAttribute('contenteditable', 'false');
+           badge.setAttribute('style', 'position: absolute; bottom: -12px; right: 8px; background: white; border: 1px solid #dadce0; border-radius: 12px; padding: 2px 6px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;');
+           parent.appendChild(badge);
+       }
+       const currentHtml = badge.innerHTML;
+       if (!currentHtml.includes(emoji)) {
+           badge.innerHTML = currentHtml ? currentHtml + ' ' + emoji : emoji;
+       }
+       this.save();
+    } else {
+       // Just in case parent doesn't have doc-media-wrapper, wrap it or append badge directly
+       let badge = this.selectedObject.parentElement!.querySelector('.media-reaction-badge');
+       if (!badge) {
+           badge = document.createElement('div');
+           badge.className = 'media-reaction-badge';
+           badge.setAttribute('contenteditable', 'false');
+           badge.setAttribute('style', 'position: absolute; bottom: -12px; right: 8px; background: white; border: 1px solid #dadce0; border-radius: 12px; padding: 2px 6px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;');
+           this.selectedObject.parentElement!.style.position = 'relative';
+           this.selectedObject.parentElement!.appendChild(badge);
+       }
+       const currentHtml = badge.innerHTML;
+       if (!currentHtml.includes(emoji)) {
+           badge.innerHTML = currentHtml ? currentHtml + ' ' + emoji : emoji;
+       }
+       this.save();
+    }
+    this.showDocMediaReactions = false;
+  }
+
+  openDocEmojiPicker(event: Event) {
+    event.stopPropagation();
+    this.showDocEmojiPickerModal = true;
+    this.showDocMediaReactions = false;
+  }
+
+  onDocEmojiSelect(emoji: string) {
+    this.addDocMediaReaction(emoji);
+    if (!this.docReactionEmojis.includes(emoji)) {
+        this.docReactionEmojis.pop();
+        this.docReactionEmojis.unshift(emoji);
+    }
+    this.showDocEmojiPickerModal = false;
+  }
+
 }
 

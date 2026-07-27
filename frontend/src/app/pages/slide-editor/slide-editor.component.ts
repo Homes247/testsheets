@@ -62,6 +62,7 @@ interface SlideData { id: string; title: string; pages: Record<string, Page>; pa
                 Insert
                 <div class="dropdown" *ngIf="activeMenu === 'insert'">
                   <div class="dd-item" (click)="triggerImageInsert()"><span class="dd-text">Image</span></div>
+<div class="dd-item" (click)="triggerVideoInsert()"><span class="dd-text">Video</span></div>
                   <div class="dd-item" (click)="insertTextBox()"><span class="dd-text">Text box</span></div>
                   <div class="dd-item" (click)="insertShape()"><span class="dd-text">Shape</span></div>
                   <div class="dd-item" (click)="insertLine()"><span class="dd-text">Line</span></div>
@@ -287,6 +288,28 @@ interface SlideData { id: string; title: string; pages: Record<string, Page>; pa
           <div style="display:flex; align-items:center; justify-content:space-between;">
             <button (click)="copyLink()" style="background:transparent; border:none; color:#e8eaed; font-size:14px; font-weight:500; border-radius:24px; padding:8px 12px; margin-left:-12px; cursor:pointer;">Copy Link</button>
             <button (click)="shareModalOpen = false" style="background:#303134; color:#8ab4f8; font-size:14px; font-weight:500; border:none; border-radius:24px; padding:0 24px; height:40px; cursor:pointer;">Done</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Video Modal -->
+      <div class="modal-overlay" *ngIf="videoModalOpen" (click)="videoModalOpen = false">
+        <div class="modal" style="width: 400px; padding: 24px;" (click)="$event.stopPropagation()">
+          <h3 style="margin-top:0;">Insert Video</h3>
+          <p style="color:#5f6368;font-size:14px;margin-bottom:16px;">Option 1: Upload a file</p>
+          
+          <div class="upload-area" style="border:2px dashed #dadce0; border-radius:8px; padding:32px; text-align:center; margin-bottom:16px; background:#f8f9fa;">
+            <input type="file" #vidInput accept="video/*" style="display:none" (change)="uploadVideo($event)">
+            <button class="btn outline" style="width:100%" (click)="vidInput.click()">Select File</button>
+          </div>
+          
+          <div style="text-align:center;color:#9aa0a6;margin-bottom:16px;font-size:12px;">— OR —</div>
+          
+          <p style="color:#5f6368;font-size:14px;margin-bottom:8px;">Option 2: By URL</p>
+          <input type="text" [(ngModel)]="videoUrl" placeholder="https://" style="width:100%;padding:8px;margin-bottom:16px;box-sizing:border-box;border:1px solid #ccc;border-radius:4px;" />
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <button class="btn outline" (click)="videoModalOpen = false">Cancel</button>
+            <button class="btn blue-btn" (click)="insertVideo()">Insert URL</button>
           </div>
         </div>
       </div>
@@ -770,7 +793,7 @@ export class SlideEditorComponent implements OnInit, OnDestroy {
 
   onSlideMouseDown(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    if (target.tagName === 'IMG' || target.classList.contains('canvas-shape') || target.classList.contains('canvas-textbox')) {
+    if (target.tagName === 'IMG' || target.tagName === 'VIDEO' || target.classList.contains('canvas-shape') || target.classList.contains('canvas-textbox')) {
       this.activeImg = target;
       if (this.activeImg.style.position !== 'absolute') {
         const imgRect = this.activeImg.getBoundingClientRect();
@@ -1352,5 +1375,107 @@ export class SlideEditorComponent implements OnInit, OnDestroy {
     if (t) {
       this.showToast('Transition applied: ' + t);
     }
+  }
+
+  // -- Video / Reaction Methods --
+  videoModalOpen = false;
+  videoUrl = '';
+
+  triggerVideoInsert() {
+    this.closeMenus();
+    this.videoModalOpen = true;
+    this.videoUrl = '';
+  }
+
+  insertVideoHtml(url: string) {
+    if (!this.slideBodyRef || !this.activePage) return;
+    this.slideBodyRef.nativeElement.focus();
+    
+    // Instead of execCommand, let's append a resizable video block directly
+    // to allow free drag/resize just like images.
+    const html = `<video src="${url}" controls style="width:300px; height:auto; position:absolute; left:50px; top:50px;"></video>`;
+    this.slideBodyRef.nativeElement.innerHTML += html;
+    
+    this.activePage.body = this.slideBodyRef.nativeElement.innerHTML;
+    this.onChanged();
+  }
+
+  insertVideo() {
+    if (this.videoUrl) {
+      this.insertVideoHtml(this.videoUrl);
+    }
+    this.videoModalOpen = false;
+  }
+
+  uploadVideo(e: any) {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (re) => {
+        const dataUrl = re.target?.result as string;
+        this.insertVideoHtml(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+    this.videoModalOpen = false;
+  }
+
+  downloadSelectedSlideMedia() {
+    if (!this.activeImg) return;
+    const src = this.activeImg.getAttribute('src');
+    if (!src) return;
+    const a = document.createElement('a');
+    a.href = src;
+    a.download = 'slide_media';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  // Reactions
+  slideReactionEmojis = ['👍', '❤️', '😂', '😲', '😢', '😡'];
+  showSlideMediaReactions = false;
+  showSlideEmojiPickerModal = false;
+
+  toggleSlideMediaReactions(event: Event) {
+    event.stopPropagation();
+    this.showSlideMediaReactions = !this.showSlideMediaReactions;
+    this.showSlideEmojiPickerModal = false;
+  }
+
+  addSlideMediaReaction(emoji: string) {
+    if (!this.activeImg) return;
+    // We add a badge inside the slide body, absolutely positioned relative to activeImg
+    let badge = document.createElement('div');
+    badge.className = 'slide-reaction-badge';
+    badge.innerHTML = emoji;
+    badge.setAttribute('contenteditable', 'false');
+    
+    const left = parseFloat(this.activeImg.style.left || '0') + parseFloat(this.activeImg.style.width || '0') - 20;
+    const top = parseFloat(this.activeImg.style.top || '0') + parseFloat(this.activeImg.style.height || '0') - 10;
+    
+    badge.setAttribute('style', `position: absolute; left: ${left}px; top: ${top}px; background: white; border: 1px solid #dadce0; border-radius: 12px; padding: 2px 6px; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); z-index: 10;`);
+    
+    this.slideBodyRef?.nativeElement.appendChild(badge);
+    if(this.activePage) this.activePage.body = this.slideBodyRef?.nativeElement.innerHTML || '';
+    this.onChanged();
+    
+    this.showSlideMediaReactions = false;
+  }
+
+  openSlideEmojiPicker(event: Event) {
+    event.stopPropagation();
+    this.showSlideEmojiPickerModal = true;
+    this.showSlideMediaReactions = false;
+  }
+
+  onSlideEmojiSelect(emoji: string) {
+    this.addSlideMediaReaction(emoji);
+    if (!this.slideReactionEmojis.includes(emoji)) {
+        this.slideReactionEmojis.pop();
+        this.slideReactionEmojis.unshift(emoji);
+    }
+    this.showSlideEmojiPickerModal = false;
   }
 }
