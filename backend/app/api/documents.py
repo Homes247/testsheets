@@ -1152,17 +1152,35 @@ async def update_document(
             try:
                 parsed_new = json.loads(body.content)
                 has_cell_data = False
-                sheets = parsed_new.get("_importedSheets", [])
-                if not sheets and parsed_new.get("cells"):
-                    has_cell_data = any(parsed_new["cells"].values()) if isinstance(parsed_new["cells"], dict) else bool(parsed_new["cells"])
-                for s in sheets:
-                    sc = s.get("cells", {})
-                    if isinstance(sc, dict) and sc:
+                
+                # Check root-level validations, formats, cells, and notes
+                if parsed_new.get("validations") and bool(parsed_new["validations"]):
+                    has_cell_data = True
+                elif parsed_new.get("formats") and bool(parsed_new["formats"]):
+                    has_cell_data = True
+                elif parsed_new.get("cells"):
+                    if isinstance(parsed_new["cells"], dict) and any(parsed_new["cells"].values()):
                         has_cell_data = True
-                        break
-                    elif isinstance(sc, list) and any(any(cell for cell in row) for row in sc if row):
+                    elif isinstance(parsed_new["cells"], list) and any(any(cell for cell in row) for row in parsed_new["cells"] if row):
                         has_cell_data = True
-                        break
+
+                if not has_cell_data:
+                    sheets = parsed_new.get("_importedSheets", [])
+                    for s in sheets:
+                        if s.get("validations") and bool(s.get("validations")):
+                            has_cell_data = True
+                            break
+                        if s.get("formats") and bool(s.get("formats")):
+                            has_cell_data = True
+                            break
+                        sc = s.get("cells", {})
+                        if isinstance(sc, dict) and any(sc.values()):
+                            has_cell_data = True
+                            break
+                        elif isinstance(sc, list) and any(any(cell for cell in row) for row in sc if row):
+                            has_cell_data = True
+                            break
+
                 if not has_cell_data:
                     skip_save = True
                     print(f"[SAVE GUARD] Blocked saving empty sheet content for doc {doc.id} (existing size: {doc.file_size} bytes)")
@@ -1190,12 +1208,12 @@ async def update_document(
                 doc.file_path = storage_res["relative_path"]
                 doc.file_size = storage_res["size"]
                 doc.content_version = (doc.content_version or 1) + 1
-                
+
                 # Checkpoint logic for manual/explicit saves (debounce 30 seconds)
                 if doc.doc_type == "sheet":
                     IST_OFFSET = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
                     now = _dt.datetime.now(IST_OFFSET).replace(tzinfo=None)
-                    
+
                     last_version_result = await db.execute(
                         select(SheetVersion)
                         .where(SheetVersion.document_id == doc_id, SheetVersion.is_named == False)
@@ -1203,15 +1221,15 @@ async def update_document(
                         .limit(1)
                     )
                     last_version = last_version_result.scalar_one_or_none()
-                    
+
                     if not last_version or (now - last_version.created_at).total_seconds() > 30:
                         version_id = str(uuid.uuid4())
                         sheet_snapshot_url = f"Drive/Sheet/{doc.owner_id}/versions/{doc_id}_{version_id}.json"
-                        
+
                         import gzip
                         from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
                         body_bytes = gzip.compress(body.content.encode("utf-8"), compresslevel=1)
-                        
+
                         def upload_to_r2():
                             _s3_client.put_object(
                                 Bucket=R2_BUCKET_NAME,
@@ -1220,7 +1238,7 @@ async def update_document(
                                 ContentType="application/json",
                             )
                         await asyncio.to_thread(upload_to_r2)
-                        
+
                         new_version = SheetVersion(
                             id=version_id,
                             document_id=doc_id,
@@ -1231,7 +1249,21 @@ async def update_document(
                             created_at=now
                         )
                         db.add(new_version)
-                        
+
+                # Always sync in-memory WebSocket state with the HTTP-saved content.
+                # This ensures the RAM state exactly matches R2 after every PUT save,
+                # so the next WS "update" broadcast sends the correct, complete document.
+                try:
+                    from main import manager
+                    ws_state = manager.doc_states.get(doc_id)
+                    if ws_state:
+                        parsed_save = json.loads(body.content)
+                        ws_state["data"] = [parsed_save]
+                        ws_state["dirty"] = False
+                        print(f"[HTTP SAVE] Synced RAM state for {doc_id}")
+                except Exception as ram_err:
+                    print(f"[HTTP SAVE] Could not sync RAM state for {doc_id}: {ram_err}")
+
             except Exception as e:
                 import traceback
                 print(f"Failed to save document {doc.id} to storage: {e}")

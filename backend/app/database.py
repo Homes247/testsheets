@@ -26,6 +26,7 @@ engine = create_async_engine(
     pool_recycle=300,
     pool_timeout=10,
     pool_pre_ping=True,   # Enabled to prevent 'Lost connection' OperationalErrors crashing WebSockets
+    pool_reset_on_return='rollback',
     connect_args={
         "connect_timeout": 10
     }

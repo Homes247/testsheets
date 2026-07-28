@@ -138,6 +138,7 @@ export interface AuditOp {
                 <span *ngIf="saveStatus==='saved'">
                    Saved at {{lastSavedTime}}
                 </span>
+                <span *ngIf="saveStatus==='unsaved'" style="color:#f59e0b; font-style:italic;" title="Autosave is OFF. Click File -> Save or press Ctrl+S to save.">Unsaved changes (Autosave off)</span>
                 <span *ngIf="saveStatus==='error'" style="color:#ea4335;">Failed to save</span>
               </div>
             </div>
@@ -212,8 +213,8 @@ export interface AuditOp {
                </div>
             </div>
             <div class="mds"></div>
-            <div class="mdi" (click)="triggerCopy()"><span class="mdi-icon material-symbols-outlined">content_copy</span>Make a Copy...</div>
-            <div class="mdi" (click)="save(); closeMenus()"><span class="mdi-icon material-symbols-outlined">save</span>Save<span class="mh">Ctrl+S</span></div>
+            <div class="mdi" (click)="save(true); closeMenus()"><span class="mdi-icon material-symbols-outlined">save</span>Save<span class="mh">Ctrl+S</span></div>
+            <div class="mdi" (click)="toggleAutoSave(); closeMenus()"><span class="mdi-icon material-symbols-outlined">{{ autoSaveEnabled ? 'check_box' : 'check_box_outline_blank' }}</span>Autosave</div>
                         <div class="mdi has-sub"><span class="mdi-icon material-symbols-outlined">download</span>Download as<span class="mdi-arrow material-symbols-outlined">chevron_right</span>
                <div class="mdi-sub">
                  <div class="mdi" (click)="exportFile('xlsx')">MS Excel Workbook<span class="mh">.xlsx</span></div>
@@ -303,6 +304,8 @@ export interface AuditOp {
                 <div class="mdi" (click)="clearDataValidations();closeMenus()">Data Validations</div>
                 <div class="mdi" (click)="clearConditionalFormats();closeMenus()">Conditional Formats</div>
                 <div class="mdi" (click)="clearRichTextFormats();closeMenus()">RichText Formats</div>
+                <div class="mds"></div>
+                <div class="mdi" style="color:#ef4444;" (click)="clearAllFilters();closeMenus()">Clear All Filters</div>
               </div>
             </div>
             <div class="mdi has-sub">Delete <span class="mdi-arrow material-symbols-outlined">chevron_right</span>
@@ -1963,7 +1966,7 @@ export interface AuditOp {
                     </ng-container>
                     <ng-template #dateInput>
                       <div class="cell-display" [ngStyle]="getContentStyle(r, c)" [class.wrap-text]="getFormatWrap(r, c)" [style.opacity]="isEditingCell && selectedRow===r && selectedCol===c ? '0' : '1'">
-                        <a *ngIf="isUrl(cells[r][c]); else normalText" [href]="cells[r][c]" target="_blank" style="color: #1155cc; text-decoration: underline; pointer-events: auto; cursor: pointer;" (click)="onLinkClick($event, cells[r][c])">{{ getDisplayValue(r, c) }}</a>
+                        <a *ngIf="isUrl(cells[r][c], r, c); else normalText" [href]="cells[r][c]" target="_blank" style="color: #1155cc; text-decoration: underline; pointer-events: auto; cursor: pointer;" (click)="onLinkClick($event, cells[r][c])">{{ getDisplayValue(r, c) }}</a>
                         <ng-template #normalText>{{ getDisplayValue(r, c) }}</ng-template>
                       </div>
                       <!-- Auto-filter Dropdown Icon -->
@@ -6693,71 +6696,12 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       // ─────────────────────────────────────────────────────────────────
       try {
         let p = JSON.parse(doc.content || '{}');
-        console.log("Parsed JSON keys:", Object.keys(p));
-        if (p.cells && p.cells.length > 0) {
-          console.log("Sample cell (0,0):", p.cells[0][0]);
-          console.log("Sample cell D2 (1,3):", p.cells[1] ? p.cells[1][3] : "N/A");
-        }
-        if (Array.isArray(p) && p.length > 0) p = p[0];
-        if (p.cells) {
-          for (let r = 0; r < this.ROWS; r++)
-            for (let c = 0; c < this.COLS; c++)
-              this.cells[r][c] = p.cells[r]?.[c] ?? '';
-        }
-        if (p.formats) {
-          this.formats = p.formats;
-        }
-        if (p.validations) {
-          this.validations = p.validations;
-        }
-        if (p.colWidths) this.sheets[this.currentSheetIdx].colWidths = p.colWidths;
-        if (p.rowHeights) this.sheets[this.currentSheetIdx].rowHeights = p.rowHeights;
-        if (p._importedSheets) {
-          // Normalize sheets: cells may be sparse {r:{c:val}} or 2D array — convert both to 2D array for live editing
-          this.sheets = p._importedSheets.map((sheet: any) => {
-            let cells2d: string[][];
-            if (Array.isArray(sheet.cells)) {
-              // Legacy 2D array — pad/clone to this.ROWS×this.COLS
-              cells2d = Array.from({ length: Math.max(this.ROWS, sheet.cells.length) }, (_, r) =>
-                Array.from({ length: Math.max(this.COLS, sheet.cells[r]?.length ?? 0) }, (_, c) =>
-                  sheet.cells[r]?.[c] ?? ''));
-            } else {
-              // Sparse object {r:{c:val}} — expand to 2D
-              const sp = sheet.cells || {};
-              const maxR = Math.max(this.ROWS, ...Object.keys(sp).map(Number).filter(n => !isNaN(n))) + 1;
-              cells2d = Array.from({ length: maxR }, (_, r) =>
-                Array.from({ length: this.COLS }, (_, c) => sp[r]?.[c] ?? ''));
-            }
-            return { ...sheet, cells: cells2d };
-          });
-          this.currentSheetIdx = 0;
-          const s0 = this.sheets[0];
-          for (let r = 0; r < this.ROWS; r++)
-            for (let c = 0; c < this.COLS; c++)
-              this.cells[r][c] = s0.cells[r]?.[c] ?? '';
-          this.formats = { ...(s0.formats || {}) };
-          this.validations = { ...(s0.validations || {}) };
-          this.hiddenRows = new Set(s0.hiddenRows || []);
-          this.activeFilterCols = new Set(s0.activeFilterCols || []);
-          this.filterActive = !!s0.filterActive;
-          this.deserializeAdvFilterState(s0.advFilterSavedState);
-          this.frozenRowsCount = s0.frozenRowsCount || 0;
-          this.frozenColsCount = s0.frozenColsCount || 0;
-        }
-        // Always restore root-level filter state (handles new save format where filter is at the root)
-        if (p.filterActive !== undefined) this.filterActive = !!p.filterActive;
-        if (p.activeFilterCols !== undefined) this.activeFilterCols = new Set(p.activeFilterCols);
-        if (p.hiddenRows !== undefined) this.hiddenRows = new Set(p.hiddenRows);
-        if (p.advFilterSavedState !== undefined) this.deserializeAdvFilterState(p.advFilterSavedState);
-        if (p.frozenRowsCount !== undefined) this.frozenRowsCount = p.frozenRowsCount;
-        if (p.frozenColsCount !== undefined) this.frozenColsCount = p.frozenColsCount;
-        if (p.calendarNotes) this.calendarNotes = p.calendarNotes;
-        if (p.globalNotes) this.globalNotes = p.globalNotes;
-        if (p.tasks) this.tasks = p.tasks;
+        this.parseDocumentContent(p);
       } catch (err) {
         console.error('[SheetEditor] Error parsing document content:', err);
         (this as any).initError = true;
       }
+      this.checkAndRestoreLocalDraft();
       this.dataLoaded = true;
       this.isLoadingDocument = false;
       // Re-apply filter after load if it was active, to ensure hidden rows are computed
@@ -6772,52 +6716,57 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         this.activeUsers = msg.users ?? 1;
       } else if (msg.type === 'update') {
         this.activeUsers = msg.users ?? this.activeUsers;
-        this.applyingRemote = true;
         if (msg.title) this.title = msg.title;
         if (msg.content !== undefined) {
           try {
             const p = JSON.parse(msg.content!);
-            // Handle array of sheets (from server's doc_states) or single object
-            const sheets = Array.isArray(p) ? p : [p];
-            if (sheets[this.currentSheetIdx]) {
-              const active = sheets[this.currentSheetIdx];
-              if (active.cells) {
+            // The backend always sends a single root-doc object (not an array).
+            // The authoritative per-sheet data lives in _importedSheets[sheetIdx].
+            // Root-level `cells` is a Sheet-1 backward-compat alias that may lag behind.
+            const rootDoc = Array.isArray(p) ? p[this.currentSheetIdx] : p;
+
+            // Prefer _importedSheets[currentSheetIdx] cells; fall back to root cells only for Sheet 0
+            const importedSheet = rootDoc?._importedSheets?.[this.currentSheetIdx];
+            const cellSource = importedSheet ?? (this.currentSheetIdx === 0 ? rootDoc : null);
+
+            if (cellSource) {
+              this.applyingRemote = true;
+              if (cellSource.cells) {
                 for (let r = 0; r < this.ROWS; r++)
                   for (let c = 0; c < this.COLS; c++)
-                    this.cells[r][c] = active.cells[r]?.[c] ?? '';
+                    this.cells[r][c] = cellSource.cells[r]?.[c] ?? '';
               }
-              if (active.formats) this.formats = active.formats;
-              if (active.validations) this.validations = active.validations;
-              if (active.hiddenRows !== undefined) this.hiddenRows = new Set(active.hiddenRows);
-              if (active.activeFilterCols !== undefined) this.activeFilterCols = new Set(active.activeFilterCols);
-              if (active.filterActive !== undefined) {
-                this.filterActive = active.filterActive;
-                this.deserializeAdvFilterState(active.advFilterSavedState);
+              if (cellSource.formats) this.formats = cellSource.formats;
+              if (cellSource.validations) this.validations = cellSource.validations;
+              if (cellSource.hiddenRows !== undefined) this.hiddenRows = new Set(cellSource.hiddenRows);
+              if (cellSource.activeFilterCols !== undefined) this.activeFilterCols = new Set(cellSource.activeFilterCols);
+              if (cellSource.filterActive !== undefined) {
+                this.filterActive = cellSource.filterActive;
+                this.deserializeAdvFilterState(cellSource.advFilterSavedState);
               }
-              if (active.frozenRowsCount !== undefined) this.frozenRowsCount = active.frozenRowsCount;
-              if (active.frozenColsCount !== undefined) this.frozenColsCount = active.frozenColsCount;
+              if (cellSource.frozenRowsCount !== undefined) this.frozenRowsCount = cellSource.frozenRowsCount;
+              if (cellSource.frozenColsCount !== undefined) this.frozenColsCount = cellSource.frozenColsCount;
 
-              // When backend sends a full-doc (root object with _importedSheets), the "active" above
-              // is the root doc itself. Read filter state from _importedSheets[idx] if root lacks it.
-              const importedSheet = active._importedSheets?.[this.currentSheetIdx];
-              if (importedSheet) {
-                if (importedSheet.filterActive !== undefined && active.filterActive === undefined) {
-                  this.filterActive = !!importedSheet.filterActive;
-                  this.deserializeAdvFilterState(importedSheet.advFilterSavedState);
+              // Also pick up root-level filter state if the sheet doesn't have it
+              if (rootDoc && cellSource !== rootDoc) {
+                if (rootDoc.filterActive !== undefined && cellSource.filterActive === undefined) {
+                  this.filterActive = !!rootDoc.filterActive;
+                  this.deserializeAdvFilterState(rootDoc.advFilterSavedState);
                 }
-                if (importedSheet.activeFilterCols !== undefined && active.activeFilterCols === undefined) {
-                  this.activeFilterCols = new Set(importedSheet.activeFilterCols);
+                if (rootDoc.activeFilterCols !== undefined && cellSource.activeFilterCols === undefined) {
+                  this.activeFilterCols = new Set(rootDoc.activeFilterCols);
                 }
-                if (importedSheet.hiddenRows !== undefined && active.hiddenRows === undefined) {
-                  this.hiddenRows = new Set(importedSheet.hiddenRows);
+                if (rootDoc.hiddenRows !== undefined && cellSource.hiddenRows === undefined) {
+                  this.hiddenRows = new Set(rootDoc.hiddenRows);
                 }
-                if (importedSheet.frozenRowsCount !== undefined && active.frozenRowsCount === undefined) {
-                  this.frozenRowsCount = importedSheet.frozenRowsCount;
+                if (rootDoc.frozenRowsCount !== undefined && cellSource.frozenRowsCount === undefined) {
+                  this.frozenRowsCount = rootDoc.frozenRowsCount;
                 }
-                if (importedSheet.frozenColsCount !== undefined && active.frozenColsCount === undefined) {
-                  this.frozenColsCount = importedSheet.frozenColsCount;
+                if (rootDoc.frozenColsCount !== undefined && cellSource.frozenColsCount === undefined) {
+                  this.frozenColsCount = rootDoc.frozenColsCount;
                 }
               }
+              setTimeout(() => this.applyingRemote = false, 50);
             }
           } catch { }
           // Re-apply filter logic after remote update
@@ -6950,7 +6899,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
-      this.save();
+      this.save(true);
       return;
     }
 
@@ -7147,7 +7096,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         tsvRows.push(tsvCols.join('\t'));
       }
       const expectedTsv = tsvRows.join('\n');
-      if (pastedText === expectedTsv || pastedText === expectedTsv + '\r\n' || pastedText === expectedTsv + '\n') {
+      const normPasted = (pastedText || '').replace(/\r\n/g, '\n').trim();
+      const normExpected = expectedTsv.replace(/\r\n/g, '\n').trim();
+      if (normPasted === normExpected || !normPasted) {
         this.applyRichPaste('all');
         this.showToast('Pasted.');
         return;
@@ -7490,7 +7441,11 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     return !!(f && (f as any)['checkbox']);
   }
 
-  isUrl(val: string): boolean {
+  isUrl(val: string, r?: number, c?: number): boolean {
+    if (r !== undefined && c !== undefined) {
+      const f = this.formats[`${r},${c}`];
+      if (f && (f as any).noHyperlink) return false;
+    }
     if (!val || typeof val !== 'string') return false;
     return /^(https?:\/\/[^\s]+)$/i.test(val.trim());
   }
@@ -8379,41 +8334,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   // ── Clear all cells in current range / selection ─────────────────────────
   clearRangeData() {
     this.pushHistory();
-    if (this.rangeStart && this.rangeEnd) {
-      const minR = Math.min(this.rangeStart.r, this.rangeEnd.r);
-      const maxR = Math.max(this.rangeStart.r, this.rangeEnd.r);
-      const minC = Math.min(this.rangeStart.c, this.rangeEnd.c);
-      const maxC = Math.max(this.rangeStart.c, this.rangeEnd.c);
-      for (let r = minR; r <= maxR; r++) {
-        for (let c = minC; c <= maxC; c++) {
-          this.cells[r][c] = '';
-          const ref = `${r},${c}`;
-          if (this.formats[ref]) {
-            delete this.formats[ref].bg;
-            delete this.formats[ref].bold;
-            delete this.formats[ref].italic;
-            delete this.formats[ref].color;
-            delete this.formats[ref].strikethrough;
-            delete (this.formats[ref] as any).checkbox;
-          }
-        }
-      }
-    } else {
-      this.cells[this.selectedRow][this.selectedCol] = '';
-      const ref = `${this.selectedRow},${this.selectedCol}`;
-      if (this.formats[ref]) {
-        delete this.formats[ref].bg;
-        delete this.formats[ref].bold;
-        delete this.formats[ref].italic;
-        delete this.formats[ref].color;
-        delete this.formats[ref].strikethrough;
-        delete (this.formats[ref] as any).checkbox;
-      }
+    this.forEachSelectedCell((r, c) => {
+      if (!this.cells[r]) this.cells[r] = [];
+      this.cells[r][c] = '';
+    });
+    if (this.selectedRow !== undefined && this.selectedCol !== undefined) {
+      this.formulaBarValue = '';
     }
-    this.formulaBarValue = '';
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
-    this.showToast('Selection cleared.');
+    this.showToast('Contents cleared.');
+    this.closeMenus();
   }
 
 
@@ -8466,14 +8397,28 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   }
 
   getDropdownColor(r: number, c: number, val: string): string {
+    if (!val) return '';
     const opts = this.getCellDropdownOptions(r, c);
-    const found = opts.find(o => (typeof o === 'string' ? o : o.label) === val) as DropdownOption | undefined;
-    return found?.color || '';
+    if (!opts || !opts.length) return '';
+    const cleanVal = String(val).trim().toLowerCase();
+    const found = opts.find(o => {
+      const label = typeof o === 'string' ? o : o.label;
+      return label && String(label).trim().toLowerCase() === cleanVal;
+    }) as DropdownOption | undefined;
+    if (found && found.color) return found.color;
+    const v = this.validations[`${r},${c}`];
+    return v?.singleColor || '';
   }
 
   getDropdownTextColor(r: number, c: number, val: string): string {
+    if (!val) return '#000000';
     const opts = this.getCellDropdownOptions(r, c);
-    const found = opts.find(o => (typeof o === 'string' ? o : o.label) === val) as DropdownOption | undefined;
+    if (!opts || !opts.length) return '#000000';
+    const cleanVal = String(val).trim().toLowerCase();
+    const found = opts.find(o => {
+      const label = typeof o === 'string' ? o : o.label;
+      return label && String(label).trim().toLowerCase() === cleanVal;
+    }) as DropdownOption | undefined;
     if (!found) return '#000000';
     return found.textColor || '#000000';
   }
@@ -8624,8 +8569,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       targetSheet.validations = { ...targetVals };
     }
 
-    this.onCellChange();
-    this.save();
+    this.onCellChange(undefined, undefined, true);
+    this.save(true);
     this.refreshManagePicklistRules();
     this.showToast('Picklist rule deleted.');
     if (this.cdr) this.cdr.detectChanges();
@@ -8978,8 +8923,6 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       for (let r = minR; r <= maxR; r++) {
         for (let c = minC; c <= maxC; c++) {
           newValidations[`${r},${c}`] = { ...spec };
-          const cur = this.cells[r]?.[c];
-          if (cur && !validOptions.find(o => o.label === cur)) this.cells[r][c] = '';
         }
       }
       this.validations = newValidations;
@@ -8991,10 +8934,6 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         for (let r = minR; r <= maxR; r++) {
           for (let c = minC; c <= maxC; c++) {
             targetSheet.validations[`${r},${c}`] = { ...spec };
-            if (targetSheet.cells && targetSheet.cells[r]) {
-              const cur = targetSheet.cells[r][c];
-              if (cur && !validOptions.find(o => o.label === cur)) targetSheet.cells[r][c] = '';
-            }
           }
         }
       }
@@ -9019,8 +8958,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     }
 
     this.validationModalOpen = false;
-    this.onCellChange();
-    this.save();
+    this.onCellChange(undefined, undefined, true);
+    this.save(true);
     this.showToast(`Picklist set: ${validOptions.length} items`);
     if (this.cdr) this.cdr.detectChanges();
   }
@@ -9047,8 +8986,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     }
     if (removed) {
       this.validations = v;
-      this.onCellChange();
-      this.save();
+      this.onCellChange(undefined, undefined, true);
+      this.save(true);
       this.showToast('Dropdown removed.');
     }
   }
@@ -9550,32 +9489,34 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
 
   clearAllFormats() {
-    const minR = this.rangeStart ? Math.min(this.rangeStart.r, this.rangeEnd!.r) : this.selectedRow;
-    const maxR = this.rangeStart ? Math.max(this.rangeStart.r, this.rangeEnd!.r) : this.selectedRow;
-    const minC = this.rangeStart ? Math.min(this.rangeStart.c, this.rangeEnd!.c) : this.selectedCol;
-    const maxC = this.rangeStart ? Math.max(this.rangeStart.c, this.rangeEnd!.c) : this.selectedCol;
     this.pushHistory();
-    for (let r = minR; r <= maxR; r++)
-      for (let c = minC; c <= maxC; c++)
-        delete this.formats[`${r},${c}`];
+    this.forEachSelectedCell((r, c) => {
+      delete this.formats[`${r},${c}`];
+    });
     this.formats = { ...this.formats };
-    this.onCellChange(); this.save();
-    this.closeMenus(); this.showToast('Formats cleared.');
+    this.onCellChange(undefined, undefined, true);
+    this.save();
+    this.closeMenus();
+    this.showToast('Formats cleared.');
   }
 
   clearAll() {
     this.pushHistory();
-    const minR = this.rangeStart ? Math.min(this.rangeStart.r, this.rangeEnd!.r) : this.selectedRow;
-    const maxR = this.rangeStart ? Math.max(this.rangeStart.r, this.rangeEnd!.r) : this.selectedRow;
-    const minC = this.rangeStart ? Math.min(this.rangeStart.c, this.rangeEnd!.c) : this.selectedCol;
-    const maxC = this.rangeStart ? Math.max(this.rangeStart.c, this.rangeEnd!.c) : this.selectedCol;
-    for (let r = minR; r <= maxR; r++)
-      for (let c = minC; c <= maxC; c++) {
-        this.cells[r][c] = '';
-        delete this.formats[`${r},${c}`];
-      }
+    this.forEachSelectedCell((r, c) => {
+      if (!this.cells[r]) this.cells[r] = [];
+      this.cells[r][c] = '';
+      const ref = `${r},${c}`;
+      delete this.formats[ref];
+      delete this.validations[ref];
+    });
     this.formats = { ...this.formats };
-    this.onCellChange(); this.save(); this.closeMenus();
+    this.validations = { ...this.validations };
+    if (this.selectedRow !== undefined && this.selectedCol !== undefined) {
+      this.formulaBarValue = this.cells[this.selectedRow]?.[this.selectedCol] || '';
+    }
+    this.onCellChange(undefined, undefined, true);
+    this.save();
+    this.closeMenus();
     this.showToast('Cleared all values and formats.');
   }
 
@@ -9961,21 +9902,39 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     }
 
     const { cells, formats: fmts, validations: vals, rows, cols } = this.richClipboard;
-    const pasteRows = mode === 'transpose' ? cols : rows;
-    const pasteCols = mode === 'transpose' ? rows : cols;
+
+    let destRows = mode === 'transpose' ? cols : rows;
+    let destCols = mode === 'transpose' ? rows : cols;
+
+    if (this.rangeStart && this.rangeEnd) {
+      const selMinR = Math.min(this.rangeStart.r, this.rangeEnd.r);
+      const selMaxR = Math.max(this.rangeStart.r, this.rangeEnd.r);
+      const selMinC = Math.min(this.rangeStart.c, this.rangeEnd.c);
+      const selMaxC = Math.max(this.rangeStart.c, this.rangeEnd.c);
+      const selRows = selMaxR - selMinR + 1;
+      const selCols = selMaxC - selMinC + 1;
+      if (selRows > destRows && selRows % destRows === 0) destRows = selRows;
+      if (selCols > destCols && selCols % destCols === 0) destCols = selCols;
+    }
+
+    const patternRows = mode === 'transpose' ? cols : rows;
+    const patternCols = mode === 'transpose' ? rows : cols;
 
     this.pushHistory({
       action_type: `paste-${mode}`,
-      target_range: `${this.getA1(destR, destC)}:${this.getA1(destR + pasteRows - 1, destC + pasteCols - 1)}`
+      target_range: `${this.getA1(destR, destC)}:${this.getA1(destR + destRows - 1, destC + destCols - 1)}`
     });
 
-    for (let r = 0; r < pasteRows; r++) {
-      for (let c = 0; c < pasteCols; c++) {
-        const srcR = mode === 'transpose' ? c : r;
-        const srcC = mode === 'transpose' ? r : c;
+    for (let r = 0; r < destRows; r++) {
+      for (let c = 0; c < destCols; c++) {
+        const pR = r % patternRows;
+        const pC = c % patternCols;
+        const srcR = mode === 'transpose' ? pC : pR;
+        const srcC = mode === 'transpose' ? pR : pC;
         const targetR = destR + r;
         const targetC = destC + c;
         if (targetR >= this.ROWS || targetC >= this.COLS) continue;
+        if (!this.cells[targetR]) this.cells[targetR] = [];
         const dstKey = `${targetR},${targetC}`;
         const srcKey = `${srcR},${srcC}`;
         const srcFmt = fmts[srcKey] || {};
@@ -10039,10 +9998,11 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     }
 
     this.formats = { ...this.formats };
+    this.validations = { ...this.validations };
     // Select the pasted range
     this.rangeStart = { r: destR, c: destC };
-    this.rangeEnd = { r: Math.min(destR + pasteRows - 1, this.ROWS - 1), c: Math.min(destC + pasteCols - 1, this.COLS - 1) };
-    this.onCellChange();
+    this.rangeEnd = { r: Math.min(destR + destRows - 1, this.ROWS - 1), c: Math.min(destC + destCols - 1, this.COLS - 1) };
+    this.onCellChange(undefined, undefined, true);
     this.updateDisplayCache();
     this.closeMenus();
   }
@@ -10057,7 +10017,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       }
     });
     this.formats = { ...this.formats };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
     this.showToast('Cleared notes.');
     this.closeMenus();
@@ -10066,16 +10026,17 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   clearHyperlinks() {
     this.pushHistory();
     this.forEachSelectedCell((r, c) => {
-      if (this.formats[`${r},${c}`]) {
-        delete (this.formats[`${r},${c}`] as any).hyperlink;
-        delete (this.formats[`${r},${c}`] as any).underline;
-        if (this.formats[`${r},${c}`].color === '#1155cc' || this.formats[`${r},${c}`].color === '#1a73e8') {
-          delete this.formats[`${r},${c}`].color;
-        }
+      const ref = `${r},${c}`;
+      if (!this.formats[ref]) this.formats[ref] = {};
+      (this.formats[ref] as any).noHyperlink = true;
+      delete (this.formats[ref] as any).hyperlink;
+      delete (this.formats[ref] as any).underline;
+      if (this.formats[ref].color === '#1155cc' || this.formats[ref].color === '#1a73e8') {
+        delete this.formats[ref].color;
       }
     });
     this.formats = { ...this.formats };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
     this.showToast('Cleared hyperlinks.');
     this.closeMenus();
@@ -10084,15 +10045,16 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   clearCheckboxes() {
     this.pushHistory();
     this.forEachSelectedCell((r, c) => {
+      if (!this.cells[r]) this.cells[r] = [];
       if (this.formats[`${r},${c}`] && (this.formats[`${r},${c}`] as any).checkbox) {
         delete (this.formats[`${r},${c}`] as any).checkbox;
-        if (this.cells[r][c] === 'TRUE' || this.cells[r][c] === 'FALSE') {
-          this.cells[r][c] = '';
-        }
+      }
+      if (this.cells[r][c] === 'TRUE' || this.cells[r][c] === 'FALSE') {
+        this.cells[r][c] = '';
       }
     });
     this.formats = { ...this.formats };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
     this.showToast('Cleared checkboxes.');
     this.closeMenus();
@@ -10104,7 +10066,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       delete this.validations[`${r},${c}`];
     });
     this.validations = { ...this.validations };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
     this.showToast('Cleared data validations.');
     this.closeMenus();
@@ -10118,7 +10080,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       }
     });
     this.formats = { ...this.formats };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
     this.showToast('Cleared conditional formats.');
     this.closeMenus();
@@ -10138,7 +10100,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       }
     });
     this.formats = { ...this.formats };
-    this.onCellChange();
+    this.onCellChange(undefined, undefined, true);
     this.save();
     this.showToast('Cleared rich text formatting.');
     this.closeMenus();
@@ -10147,11 +10109,12 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   clearAllFilters() {
     this.pushHistory();
     this.filterActive = false;
-    this.activeFilterCols.clear();
-    this.advFilterSavedState.clear();
-    this.hiddenRows.clear();
+    if (this.activeFilterCols) this.activeFilterCols.clear();
+    if (this.advFilterSavedState) this.advFilterSavedState.clear();
+    if (this.hiddenRows) this.hiddenRows.clear();
     this.onCellChange(undefined, undefined, true);
     this.showToast('All filters cleared.');
+    this.closeMenus();
   }
 
   shapeTab: 'text' | 'shape' | 'diagram' = 'diagram';
@@ -11885,6 +11848,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       const srcFmt = this.formats[`${minR},${c}`];
       const srcValRule = this.validations[`${minR},${c}`];
       for (let r = minR + 1; r <= maxR; r++) {
+        if (!this.cells[minR]) this.cells[minR] = [];
+        if (!this.cells[r]) this.cells[r] = [];
         this.cells[r][c] = this.cells[minR][c];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
         else delete this.formats[`${r},${c}`];
@@ -11911,6 +11876,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       const srcFmt = this.formats[`${r},${minC}`];
       const srcValRule = this.validations[`${r},${minC}`];
       for (let c = minC + 1; c <= maxC; c++) {
+        if (!this.cells[r]) this.cells[r] = [];
         this.cells[r][c] = this.cells[r][minC];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
         else delete this.formats[`${r},${c}`];
@@ -11937,6 +11903,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       const srcFmt = this.formats[`${maxR},${c}`];
       const srcValRule = this.validations[`${maxR},${c}`];
       for (let r = maxR - 1; r >= minR; r--) {
+        if (!this.cells[maxR]) this.cells[maxR] = [];
+        if (!this.cells[r]) this.cells[r] = [];
         this.cells[r][c] = this.cells[maxR][c];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
         else delete this.formats[`${r},${c}`];
@@ -11963,6 +11931,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       const srcFmt = this.formats[`${r},${maxC}`];
       const srcValRule = this.validations[`${r},${maxC}`];
       for (let c = maxC - 1; c >= minC; c--) {
+        if (!this.cells[r]) this.cells[r] = [];
         this.cells[r][c] = this.cells[r][maxC];
         if (srcFmt) this.formats[`${r},${c}`] = { ...srcFmt };
         else delete this.formats[`${r},${c}`];
@@ -12129,14 +12098,14 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     // Find first non-empty cell to use as template
     let templateVal = '';
     for (let r = startR - 1; r >= 0; r--) {
-      if (this.cells[r][col]) { templateVal = this.cells[r][col]; break; }
+      if (this.cells[r] && this.cells[r][col]) { templateVal = this.cells[r][col]; break; }
     }
     if (!templateVal) { this.showToast('No pattern found above the selection.'); return; }
 
     // Try numeric sequence detection
     const nums: number[] = [];
     for (let r = startR - 2; r <= startR - 1; r++) {
-      if (r >= 0 && this.cells[r][col] && !isNaN(Number(this.cells[r][col]))) {
+      if (r >= 0 && this.cells[r] && this.cells[r][col] && !isNaN(Number(this.cells[r][col]))) {
         nums.push(Number(this.cells[r][col]));
       }
     }
@@ -12147,12 +12116,14 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       let cur = nums[1];
       for (let r = startR; r <= endR; r++) {
         cur += diff;
+        if (!this.cells[r]) this.cells[r] = [];
         this.cells[r][col] = String(cur);
       }
       this.showToast(`Pattern fill: sequence with step ${diff}.`);
     } else {
       // Just fill down with same value
       for (let r = startR; r <= endR; r++) {
+        if (!this.cells[r]) this.cells[r] = [];
         if (!this.cells[r][col]) this.cells[r][col] = templateVal;
       }
       this.showToast('Pattern fill applied.');
@@ -13499,6 +13470,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     // CRITICAL: Never send data to the backend before the initial load is complete.
     // Sending empty cells would overwrite the real data stored in R2.
     if (!this.dataLoaded) return;
+
+    this.saveLocalDraft();
+
     if (forceBulk) {
       this.api.sendUpdate(JSON.stringify(this.getSparse()), this.title);
     } else {
@@ -13562,8 +13536,14 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       return { ...sheet, cells: sparseC };
     });
 
+    // IMPORTANT: root-level `cells` must always equal sparseSheets[0].cells.
+    // The WS update handler reads from _importedSheets[sheetIdx].cells, so the two
+    // locations must be in sync. Overwrite `s` with the already-flushed Sheet 0 sparse
+    // data to guarantee they match exactly.
+    const sheet0Sparse = sparseSheets[0]?.cells ?? s;
+
     return {
-      cells: s,
+      cells: sheet0Sparse,
       formats: cleanFormats,
       validations: this.validations,
       calendarNotes: this.calendarNotes,
@@ -13583,17 +13563,25 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   }
 
 
-  save() {
+  save(immediate: boolean = false) {
     // CRITICAL: Refuse to queue a save before data has been loaded from the server.
     // This prevents the race condition where empty cells overwrite real R2 data.
     if (!this.dataLoaded) {
       console.warn('[SheetEditor] Ignoring save() — data not yet loaded from server.');
       return;
     }
+    if (!this.autoSaveEnabled && !immediate) {
+      this.saveStatus = 'unsaved';
+      this.hasPendingChanges = true;
+      return;
+    }
     this.saveStatus = 'saving';
     this.hasPendingChanges = true;
-    // Push to subject instead of hitting the backend immediately
-    this.saveSubject.next();
+    if (immediate) {
+      this.executeSave();
+    } else {
+      this.saveSubject.next();
+    }
   }
 
   // The actual HTTP call to the backend
@@ -13615,6 +13603,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         this.saveStatus = 'saved';
         this.hasPendingChanges = false;
         this.lastSavedTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+        if (this.docId) {
+          try { localStorage.removeItem(`sheet_draft_${this.docId}`); } catch {}
+        }
         
         // Notify edit event
         this.api.triggerNotification(this.docId, 'edit').subscribe({
@@ -13700,6 +13691,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     if (url) {
       this.cells[this.selectedRow][this.selectedCol] = url;
       this.formulaBarValue = url;
+      const ref = `${this.selectedRow},${this.selectedCol}`;
+      if (this.formats[ref]) {
+        delete (this.formats[ref] as any).noHyperlink;
+      }
       this.onCellChange();
       this.showToast('Link inserted into cell.');
     }
@@ -14667,7 +14662,23 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   Math = Math; // expose Math for template
   // ──────────────────────────────────────────────────────────────────
   previewImageUrl: string | null = null;
-  saveStatus: 'saved' | 'saving' | 'error' = 'saved';
+  saveStatus: 'saved' | 'saving' | 'error' | 'unsaved' = 'saved';
+  autoSaveEnabled: boolean = localStorage.getItem('autoSaveEnabled') !== 'false';
+
+  toggleAutoSave() {
+    this.autoSaveEnabled = !this.autoSaveEnabled;
+    localStorage.setItem('autoSaveEnabled', this.autoSaveEnabled.toString());
+    if (this.autoSaveEnabled) {
+      this.showToast('Autosave enabled.');
+      this.save(true);
+    } else {
+      this.showToast('Autosave disabled.');
+      if (this.hasPendingChanges) {
+        this.saveStatus = 'unsaved';
+      }
+    }
+  }
+
   lastSavedTime: string = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
   private saveSubject = new Subject<void>();
   private saveSubscription!: Subscription;
@@ -15400,8 +15411,132 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.showToast(`Sheet "${this.sheets[idx].name}" published to web.`);
   }
 
-  back() { this.save(); this.router.navigate(['/']); }
+  parseDocumentContent(p: any) {
+    if (!p) return;
+    if (typeof p === 'string') {
+      try { p = JSON.parse(p); } catch { return; }
+    }
+    if (Array.isArray(p) && p.length > 0) p = p[0];
+    if (p.cells) {
+      for (let r = 0; r < this.ROWS; r++) {
+        if (!this.cells[r]) this.cells[r] = [];
+        for (let c = 0; c < this.COLS; c++)
+          this.cells[r][c] = p.cells[r]?.[c] ?? '';
+      }
+    }
+    if (p.formats) {
+      this.formats = { ...p.formats };
+    }
+    if (p.validations) {
+      this.validations = { ...p.validations };
+    }
+    if (p.colWidths && this.sheets[this.currentSheetIdx]) this.sheets[this.currentSheetIdx].colWidths = p.colWidths;
+    if (p.rowHeights && this.sheets[this.currentSheetIdx]) this.sheets[this.currentSheetIdx].rowHeights = p.rowHeights;
+    if (p._importedSheets) {
+      this.sheets = p._importedSheets.map((sheet: any) => {
+        let cells2d: string[][];
+        if (Array.isArray(sheet.cells)) {
+          cells2d = Array.from({ length: Math.max(this.ROWS, sheet.cells.length) }, (_, r) =>
+            Array.from({ length: Math.max(this.COLS, sheet.cells[r]?.length ?? 0) }, (_, c) =>
+              sheet.cells[r]?.[c] ?? ''));
+        } else {
+          const sp = sheet.cells || {};
+          const maxR = Math.max(this.ROWS, ...Object.keys(sp).map(Number).filter(n => !isNaN(n))) + 1;
+          cells2d = Array.from({ length: maxR }, (_, r) =>
+            Array.from({ length: this.COLS }, (_, c) => sp[r]?.[c] ?? ''));
+        }
+        return { ...sheet, cells: cells2d };
+      });
+      this.currentSheetIdx = 0;
+      const s0 = this.sheets[0];
+      for (let r = 0; r < this.ROWS; r++) {
+        if (!this.cells[r]) this.cells[r] = [];
+        for (let c = 0; c < this.COLS; c++)
+          this.cells[r][c] = s0.cells[r]?.[c] ?? '';
+      }
+      this.formats = { ...(s0.formats || {}) };
+      this.validations = { ...(s0.validations || {}) };
+      this.hiddenRows = new Set(s0.hiddenRows || []);
+      this.activeFilterCols = new Set(s0.activeFilterCols || []);
+      this.filterActive = !!s0.filterActive;
+      this.deserializeAdvFilterState(s0.advFilterSavedState);
+      this.frozenRowsCount = s0.frozenRowsCount || 0;
+      this.frozenColsCount = s0.frozenColsCount || 0;
+    }
+    if (p.filterActive !== undefined) this.filterActive = !!p.filterActive;
+    if (p.activeFilterCols !== undefined) this.activeFilterCols = new Set(p.activeFilterCols);
+    if (p.hiddenRows !== undefined) this.hiddenRows = new Set(p.hiddenRows);
+    if (p.advFilterSavedState !== undefined) this.deserializeAdvFilterState(p.advFilterSavedState);
+    if (p.frozenRowsCount !== undefined) this.frozenRowsCount = p.frozenRowsCount;
+    if (p.frozenColsCount !== undefined) this.frozenColsCount = p.frozenColsCount;
+    if (p.calendarNotes) this.calendarNotes = p.calendarNotes;
+    if (p.globalNotes) this.globalNotes = p.globalNotes;
+    if (p.tasks) this.tasks = p.tasks;
+  }
+
+  saveLocalDraft() {
+    if (!this.docId || !this.dataLoaded) return;
+    try {
+      const draft = {
+        docId: this.docId,
+        title: this.title,
+        sparse: this.getSparse(),
+        timestamp: Date.now(),
+        hasPendingChanges: this.hasPendingChanges
+      };
+      localStorage.setItem(`sheet_draft_${this.docId}`, JSON.stringify(draft));
+    } catch (e) {
+      console.warn('[SheetEditor] Failed to write local draft backup', e);
+    }
+  }
+
+  checkAndRestoreLocalDraft() {
+    if (!this.docId) return;
+    try {
+      const raw = localStorage.getItem(`sheet_draft_${this.docId}`);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (draft && draft.sparse && draft.hasPendingChanges) {
+          this.parseDocumentContent(draft.sparse);
+          this.hasPendingChanges = true;
+          this.saveStatus = 'unsaved';
+          this.showToast('Restored unsaved edits from local backup.');
+        }
+      }
+    } catch (e) {
+      console.warn('[SheetEditor] Failed to restore local draft', e);
+    }
+  }
+
+  @HostListener('window:beforeunload', ['$event'])
+  onBeforeUnload(e: any) {
+    if (this.dataLoaded) {
+      this.saveLocalDraft();
+      if (this.hasPendingChanges) {
+        if (this.autoSaveEnabled) {
+          this.executeSave();
+        } else {
+          e.preventDefault();
+          e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+          return 'You have unsaved changes. Are you sure you want to leave?';
+        }
+      }
+    }
+  }
+
+  @HostListener('window:pagehide')
+  onPageHide() {
+    if (this.dataLoaded) {
+      this.saveLocalDraft();
+      if (this.hasPendingChanges && this.autoSaveEnabled) {
+        this.executeSave();
+      }
+    }
+  }
+
+  back() { this.save(true); this.router.navigate(['/']); }
   ngOnDestroy() {
+    this.saveLocalDraft();
     this.syncSub?.unsubscribe();
     this.api.disconnectSync();
     if (this.saveSubscription) this.saveSubscription.unsubscribe();

@@ -175,7 +175,13 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(403, "Account inactive")
 
-    # Cache the user object for subsequent requests
+    # Detach user from current session before caching to avoid binding to closed AsyncSession connections
+    try:
+        db.expunge(user)
+    except Exception:
+        pass
+
+    # Cache the detached user object for subsequent requests
     _USER_CACHE[uid] = (now + _CACHE_TTL, user)
     return user
 

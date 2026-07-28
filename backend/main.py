@@ -127,29 +127,24 @@ class ConnectionManager:
             try:
                 content_str = json.dumps(state["data"][0]) if isinstance(state["data"], list) and state["data"] else json.dumps(state["data"])
 
-                # SAFETY: Don't save empty sheet data over real R2 content.
-                if doc_type == "sheet" and not state.get("dirty"):
-                    # If state was never dirtied, the loaded R2 data hasn't changed — skip save.
-                    logger.info(f"[EVICT] State not dirty for {doc_id}, skipping R2 write.")
-                else:
-                    result = await asyncio.to_thread(
-                        DocumentStorage.save,
-                        owner_id, doc_id_str,
-                        content_str, doc_type=doc_type
-                    )
-                    # Also update the DB file_path and file_size so the next load always
-                    # resolves to the correct R2 key, even if the HTTP save was never called.
-                    try:
-                        async with SessionLocal() as db:
-                            doc = await db.get(Document, doc_id_str)
-                            if doc:
-                                doc.file_path = result["relative_path"]
-                                doc.file_size = result["size"]
-                                doc.content_version = (doc.content_version or 1) + 1
-                                await db.commit()
-                    except Exception as db_err:
-                        logger.warning(f"[EVICT] DB update failed for {doc_id}: {db_err}")
-                    logger.info(f"[EVICT] Final save on disconnect for doc {doc_id} ({result['size']} bytes)")
+                result = await asyncio.to_thread(
+                    DocumentStorage.save,
+                    owner_id, doc_id_str,
+                    content_str, doc_type=doc_type
+                )
+                # Also update the DB file_path and file_size so the next load always
+                # resolves to the correct R2 key, even if the HTTP save was never called.
+                try:
+                    async with SessionLocal() as db:
+                        doc = await db.get(Document, doc_id_str)
+                        if doc:
+                            doc.file_path = result["relative_path"]
+                            doc.file_size = result["size"]
+                            doc.content_version = (doc.content_version or 1) + 1
+                            await db.commit()
+                except Exception as db_err:
+                    logger.warning(f"[EVICT] DB update failed for {doc_id}: {db_err}")
+                logger.info(f"[EVICT] Final save on disconnect for doc {doc_id} ({result['size']} bytes)")
             except Exception as e:
                 logger.error(f"[EVICT] Failed to save doc {doc_id} on disconnect: {e}")
         # Now it's safe to evict from RAM
@@ -300,36 +295,50 @@ async def websocket_endpoint(websocket: WebSocket, doc_id: str):
                             existing_first = existing_data[0] if isinstance(existing_data[0], dict) else {}
                             existing_sheets = existing_first.get("_importedSheets", [])
                             existing_has_cells = False
-                            for es in existing_sheets:
-                                sc = es.get("cells", {})
-                                if isinstance(sc, dict) and sc:
-                                    existing_has_cells = True
-                                    break
+                            # Check root-level cells too (not just _importedSheets)
+                            root_cells = existing_first.get("cells", {})
+                            if isinstance(root_cells, dict) and root_cells:
+                                existing_has_cells = True
+                            if not existing_has_cells:
+                                for es in existing_sheets:
+                                    sc = es.get("cells", {})
+                                    if isinstance(sc, dict) and sc:
+                                        existing_has_cells = True
+                                        break
                             if existing_has_cells:
-                                # Check if incoming data has cells
+                                # Check if incoming data has cells, validations, or formats
                                 new_sheets = parsed.get("_importedSheets", [])
                                 new_has_cells = False
-                                for ns in new_sheets:
-                                    nsc = ns.get("cells", {})
-                                    if isinstance(nsc, dict) and nsc:
-                                        new_has_cells = True
-                                        break
+
+                                if parsed.get("validations") and bool(parsed.get("validations")):
+                                    new_has_cells = True
+                                elif parsed.get("formats") and bool(parsed.get("formats")):
+                                    new_has_cells = True
+                                elif parsed.get("cells") and bool(parsed.get("cells")):
+                                    new_has_cells = True
+                                else:
+                                    for ns in new_sheets:
+                                        if ns.get("validations") and bool(ns.get("validations")):
+                                            new_has_cells = True
+                                            break
+                                        if ns.get("formats") and bool(ns.get("formats")):
+                                            new_has_cells = True
+                                            break
+                                        nsc = ns.get("cells", {})
+                                        if isinstance(nsc, dict) and bool(nsc):
+                                            new_has_cells = True
+                                            break
+                                        elif isinstance(nsc, list) and any(any(cell for cell in row) for row in nsc if row):
+                                            new_has_cells = True
+                                            break
+
                                 if not new_has_cells:
                                     logger.warning(f"[WS GUARD] Blocked empty sheet update for {doc_id} (existing has data)")
-                                    # Still broadcast so other clients see the attempted change,
-                                    # but do NOT update doc_states or mark dirty
-                                    payload = json.dumps({
-                                        "type":    "update",
-                                        "content": content_payload,
-                                        "title":   msg.get("title"),
-                                        "users":   manager.user_count(doc_id),
-                                    })
-                                    await manager.broadcast(doc_id, payload, sender_id=client_id)
+                                    # Do NOT update doc_states or broadcast — this is a truly empty payload
                                     continue
 
                         state["data"] = [parsed]
-                        if msg.get("autosave", True):
-                            state["dirty"] = True
+                        state["dirty"] = True
                     except Exception:
                         pass
 
@@ -366,8 +375,11 @@ async def websocket_endpoint(websocket: WebSocket, doc_id: str):
                         sheet["cells"] = {}
                     if str(r) not in sheet["cells"]:
                         sheet["cells"][str(r)] = {}
-                    sheet["cells"][str(r)][str(c)] = value
-                    
+                    if value != "" and value is not None:
+                        sheet["cells"][str(r)][str(c)] = value
+                    else:
+                        sheet["cells"][str(r)].pop(str(c), None)
+
                     if "formats" not in sheet:
                         sheet["formats"] = {}
                     fmt_key = f"{r},{c}"
@@ -375,6 +387,24 @@ async def websocket_endpoint(websocket: WebSocket, doc_id: str):
                         sheet["formats"][fmt_key] = formatting
                     else:
                         sheet["formats"].pop(fmt_key, None)
+
+                    # Also update root_doc for Sheet1 (sheet_idx 0)
+                    if sheet_idx == 0:
+                        if "cells" not in root_doc:
+                            root_doc["cells"] = {}
+                        if str(r) not in root_doc["cells"]:
+                            root_doc["cells"][str(r)] = {}
+                        if value != "" and value is not None:
+                            root_doc["cells"][str(r)][str(c)] = value
+                        else:
+                            root_doc["cells"][str(r)].pop(str(c), None)
+
+                        if "formats" not in root_doc:
+                            root_doc["formats"] = {}
+                        if formatting:
+                            root_doc["formats"][fmt_key] = formatting
+                        else:
+                            root_doc["formats"].pop(fmt_key, None)
                         
                     state["seq"] += 1
                     state["dirty"] = True
