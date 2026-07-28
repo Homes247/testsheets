@@ -267,7 +267,7 @@ def repair_zoho_rich_values(content_bytes: bytes) -> bytes:
                             v_idx = rc_list[vm_idx]
                             if v_idx < len(future_metadata_bk):
                                 rvb = None
-                                for elem in bk.iter():
+                                for elem in future_metadata_bk[v_idx].iter():
                                     if elem.tag.endswith('}rvb'):
                                         rvb = elem
                                         break

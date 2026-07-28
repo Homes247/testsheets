@@ -6718,6 +6718,16 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         this.activeUsers = msg.users ?? this.activeUsers;
         if (msg.title) this.title = msg.title;
         if (msg.content !== undefined) {
+          // CRITICAL GUARD: If the user has unsaved local changes, DO NOT overwrite
+          // cells/formats/validations from the WebSocket. The user's local state is the
+          // source of truth until they explicitly save. This prevents WS reconnects
+          // (which happen every few seconds) from reverting unsaved edits with stale
+          // backend RAM state.
+          if (this.hasPendingChanges) {
+            // Still update the display cache in case title changed
+            this.updateDisplayCache();
+            return;
+          }
           try {
             const p = JSON.parse(msg.content!);
             // The backend always sends a single root-doc object (not an array).
@@ -8570,7 +8580,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     }
 
     this.onCellChange(undefined, undefined, true);
-    this.save(true);
+    this.save();
     this.refreshManagePicklistRules();
     this.showToast('Picklist rule deleted.');
     if (this.cdr) this.cdr.detectChanges();
@@ -8598,18 +8608,33 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.editingOldRule = null;
     const currentSheetName = this.sheets[this.currentSheetIdx]?.name || 'Sheet1';
     if (existing && existing.options) {
+      this.refreshManagePicklistRules();
+      let foundRule = null;
+      for (const rule of this._managePicklistRules) {
+        if (rule.sheetIdx === this.currentSheetIdx && rule.cells.some((c: any) => c.r === this.selectedRow && c.c === this.selectedCol)) {
+          foundRule = rule;
+          break;
+        }
+      }
+
       this.picklistSelectType = existing.isMultiSelect ? 'multi' : 'single';
       this.displayAsChip = existing.displayAsChip !== false;
       existing.options.forEach(o => {
         if (typeof o === 'string') this.picklistOptions.push({ label: o, color: '#f97316' });
         else this.picklistOptions.push({ label: (o as DropdownOption).label, color: (o as DropdownOption).color || '#f97316', textColor: (o as DropdownOption).textColor });
       });
-      this.appliesToInput = `'${currentSheetName}'.${this.getRangeRef()}`;
+      
+      if (foundRule) {
+        this.editingOldRule = foundRule;
+        this.appliesToInput = foundRule.rangeRef;
+      } else {
+        this.appliesToInput = `'${currentSheetName}'.${this.getRangeRef()}`;
+      }
     } else {
       this.picklistSelectType = 'single';
       this.displayAsChip = true;
-      this.picklistOptions.push({ label: 'Item 1', color: '#84cc16' });
-      this.picklistOptions.push({ label: 'Item 2', color: '#ef4444' });
+      this.picklistOptions.push({ label: 'Item 1', color: '#e5e7eb' });
+      this.picklistOptions.push({ label: 'Item 2', color: '#e5e7eb' });
       this.appliesToInput = `'${currentSheetName}'.${this.getRangeRef()}`;
     }
     this.validationModalOpen = true;
@@ -8617,8 +8642,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   }
 
   addPicklistOption() {
-    const colors = ['#4caf50', '#f44336', '#ff9800', '#2196f3', '#9c27b0', '#795548', '#607d8b'];
-    this.picklistOptions.push({ label: '', color: colors[this.picklistOptions.length % colors.length] });
+    this.picklistOptions.push({ label: '', color: '#e5e7eb' });
   }
 
   openPivotModal(e?: Event) {
@@ -8908,6 +8932,27 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       maxC = Math.max(this.rangeStart.c, this.rangeEnd.c);
     }
 
+    // IMPORTANT: Clean up the old rule's cells BEFORE applying the new rule.
+    // If we clean up AFTER, we'd delete the new validation entries we just set
+    // (when the range hasn't changed, e.g. user only changed color/name).
+    if (this.editingOldRule && !this.isCopyMode) {
+      const oldSheetIdx = this.editingOldRule.sheetIdx;
+      const oldSheet = this.sheets && this.sheets[oldSheetIdx];
+      const oldVals = (oldSheetIdx === this.currentSheetIdx) ? this.validations : (oldSheet ? (oldSheet.validations || {}) : {});
+      if (this.editingOldRule.cells) {
+        for (const cell of this.editingOldRule.cells) {
+          delete oldVals[`${cell.r},${cell.c}`];
+        }
+      }
+      if (oldSheetIdx === this.currentSheetIdx) {
+        this.validations = { ...oldVals };
+        if (oldSheet) oldSheet.validations = { ...oldVals };
+      } else if (oldSheet) {
+        oldSheet.validations = { ...oldVals };
+      }
+      this.editingOldRule = null;
+    }
+
     const isMulti = this.picklistSelectType === 'multi';
     const spec = { 
       type: 'list', 
@@ -8939,27 +8984,13 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.editingOldRule && !this.isCopyMode) {
-      const oldSheetIdx = this.editingOldRule.sheetIdx;
-      const oldSheet = this.sheets && this.sheets[oldSheetIdx];
-      const oldVals = (oldSheetIdx === this.currentSheetIdx) ? this.validations : (oldSheet ? (oldSheet.validations || {}) : {});
-      if (this.editingOldRule.cells) {
-        for (const cell of this.editingOldRule.cells) {
-          delete oldVals[`${cell.r},${cell.c}`];
-        }
-      }
-      if (oldSheetIdx === this.currentSheetIdx) {
-        this.validations = { ...oldVals };
-        if (oldSheet) oldSheet.validations = { ...oldVals };
-      } else if (oldSheet) {
-        oldSheet.validations = { ...oldVals };
-      }
-      this.editingOldRule = null;
-    }
-
     this.validationModalOpen = false;
     this.onCellChange(undefined, undefined, true);
-    this.save(true);
+    // Use save() instead of save(true) so it respects the autosave setting.
+    // When autosave is OFF, this marks the sheet as "unsaved changes" without
+    // forcing an HTTP save that would reset hasPendingChanges and open a window
+    // for WS reconnects to overwrite local data with stale backend state.
+    this.save();
     this.showToast(`Picklist set: ${validOptions.length} items`);
     if (this.cdr) this.cdr.detectChanges();
   }
@@ -8987,7 +9018,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     if (removed) {
       this.validations = v;
       this.onCellChange(undefined, undefined, true);
-      this.save(true);
+      this.save();
       this.showToast('Dropdown removed.');
     }
   }
@@ -13472,6 +13503,15 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     if (!this.dataLoaded) return;
 
     this.saveLocalDraft();
+
+    // Mark as having pending changes so the WS update guard protects local edits
+    // from being overwritten by stale backend state during WS reconnects.
+    // Always set this regardless of autosave — the debounced save (autosave ON)
+    // or manual Ctrl+S (autosave OFF) will reset it after a successful HTTP save.
+    this.hasPendingChanges = true;
+    if (!this.autoSaveEnabled) {
+      this.saveStatus = 'unsaved';
+    }
 
     if (forceBulk) {
       this.api.sendUpdate(JSON.stringify(this.getSparse()), this.title);
