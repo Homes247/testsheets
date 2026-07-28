@@ -14422,13 +14422,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         let extension = format;
 
         if (format === 'xlsb' || format === 'ods') {
-          // The free SheetJS build cannot write true .xlsb binary workbooks —
-          // only 'xlsx' and 'ods' bookTypes are actually supported for writing.
-          if (format === 'xlsb') {
-            this.showToast('.xlsb export is not supported in this browser build — downloading as .xlsx instead.');
-          }
-          const effectiveBookType: 'xlsx' | 'ods' = format === 'ods' ? 'ods' : 'xlsx';
-          const effectiveExt = format === 'ods' ? 'ods' : 'xlsx';
+          const effectiveBookType: 'xlsb' | 'ods' = format === 'ods' ? 'ods' : 'xlsb';
+          const effectiveExt = format === 'ods' ? 'ods' : 'xlsb';
 
           const wb = XLSX.utils.book_new();
           const usedNames = new Set<string>();
