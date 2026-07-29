@@ -1918,8 +1918,12 @@ export interface AuditOp {
                      (dblclick)="$event.stopPropagation()"
                      (mousedown)="$event.stopPropagation()"></textarea>
                                   <ng-container *ngIf="isImageCell(r, c); else textCell">
-                    <img [src]="getImageSrc(cells[r][c])" style="max-width:100%;max-height:80px;object-fit:contain;display:inline-block;cursor:zoom-in;" 
-(click)="selectCell(r,c); previewImageUrl = getImageSrc(cells[r][c])">
+                    <div style="position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;" class="image-cell-wrapper">
+                      <img [src]="getImageSrc(cells[r][c])" style="max-width:100%;max-height:80px;object-fit:contain;display:inline-block;pointer-events:none;">
+                      <button class="enlarge-btn" (click)="$event.stopPropagation(); previewImageUrl = getImageSrc(cells[r][c])" style="position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.5); color: #fff; border: none; border-radius: 4px; padding: 2px; cursor: pointer; display: none; align-items: center; justify-content: center;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">open_in_full</span>
+                      </button>
+                    </div>
                   </ng-container>
                 <ng-template #textCell>
                   <ng-container *ngIf="isSparklineCell(r, c); else dropdownCell">
@@ -4966,6 +4970,7 @@ export interface AuditOp {
 
   `,
   styles: [`
+    .image-cell-wrapper:hover .enlarge-btn { display: flex !important; }
     /* Hide specific emojis that are unsupported on Windows 10 since ngx-emoji-mart categories bypass the filter */
     ::ng-deep .emoji-mart-emoji[title*="elting" i],
     ::ng-deep .emoji-mart-emoji[aria-label*="elting" i],
