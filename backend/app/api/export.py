@@ -324,3 +324,32 @@ async def get_presigned_url(
 
     url = await asyncio.to_thread(do_gen)
     return {"url": url}
+
+class PresignedBatchRequest(BaseModel):
+    keys: list[str]
+
+@router.post("/presigned-urls-batch")
+async def get_presigned_urls_batch(
+    body: PresignedBatchRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
+    import asyncio
+
+    def do_gen_batch():
+        result = {}
+        for key in body.keys:
+            if not key:
+                continue
+            try:
+                result[key] = _s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': R2_BUCKET_NAME, 'Key': key},
+                    ExpiresIn=3600
+                )
+            except Exception:
+                pass
+        return result
+
+    urls = await asyncio.to_thread(do_gen_batch)
+    return {"urls": urls}

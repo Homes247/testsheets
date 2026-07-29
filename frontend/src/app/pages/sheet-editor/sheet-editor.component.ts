@@ -9096,6 +9096,34 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   presignedUrlCache: Record<string, { url: string, expiresAt: number }> = {};
   pendingUrlFetches: Set<string> = new Set();
+  private batchTimer: any = null;
+  private pendingBatchKeys: Set<string> = new Set();
+
+  preloadImageKeys(contentStr: string) {
+    if (!contentStr) return;
+    const matches = contentStr.match(/\[IMAGE:(.*?)\]/g);
+    if (matches && matches.length > 0) {
+      const keys = Array.from(new Set(matches.map(m => m.substring(7, m.length - 1)))).filter(
+        key => {
+          const cached = this.presignedUrlCache[key];
+          return !cached || (cached.expiresAt - Date.now() <= 300000);
+        }
+      );
+      if (keys.length > 0) {
+        this.api.getPresignedUrlsBatch(keys).subscribe({
+          next: (res) => {
+            if (res && res.urls) {
+              const now = Date.now();
+              Object.keys(res.urls).forEach(k => {
+                this.presignedUrlCache[k] = { url: res.urls[k], expiresAt: now + 3600 * 1000 };
+              });
+              if (this.cdr) this.cdr.detectChanges();
+            }
+          }
+        });
+      }
+    }
+  }
 
   getImageSrc(val: string): string {
     if (!val || typeof val !== 'string') return '';
@@ -9113,18 +9141,38 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       }
       if (!this.pendingUrlFetches.has(key)) {
         this.pendingUrlFetches.add(key);
-        this.api.getPresignedUrl(key).subscribe({
-          next: (res) => {
-            this.presignedUrlCache[key] = { url: res.url, expiresAt: Date.now() + 3600 * 1000 };
-            this.pendingUrlFetches.delete(key);
-            if (this.cdr) this.cdr.detectChanges();
-          },
-          error: () => this.pendingUrlFetches.delete(key)
-        });
+        this.pendingBatchKeys.add(key);
+        this.scheduleBatchFetch();
       }
       return 'assets/loading-placeholder.png';
     }
     return val;
+  }
+
+  private scheduleBatchFetch() {
+    if (this.batchTimer) return;
+    this.batchTimer = setTimeout(() => {
+      this.batchTimer = null;
+      const keysToFetch = Array.from(this.pendingBatchKeys);
+      this.pendingBatchKeys.clear();
+      if (keysToFetch.length === 0) return;
+      this.api.getPresignedUrlsBatch(keysToFetch).subscribe({
+        next: (res) => {
+          const now = Date.now();
+          if (res && res.urls) {
+            Object.keys(res.urls).forEach(k => {
+              this.presignedUrlCache[k] = { url: res.urls[k], expiresAt: now + 3600 * 1000 };
+              this.pendingUrlFetches.delete(k);
+            });
+          }
+          keysToFetch.forEach(k => this.pendingUrlFetches.delete(k));
+          if (this.cdr) this.cdr.detectChanges();
+        },
+        error: () => {
+          keysToFetch.forEach(k => this.pendingUrlFetches.delete(k));
+        }
+      });
+    }, 50);
   }
 
   triggerImageInsert(type: string = 'cell') {

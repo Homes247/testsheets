@@ -38,6 +38,10 @@ export class ApiService implements OnDestroy {
     return this.http.get<{ url: string }>(`${this.base}/presigned-url?key=${encodeURIComponent(key)}`);
   }
 
+  getPresignedUrlsBatch(keys: string[]): Observable<{ urls: Record<string, string> }> {
+    return this.http.post<{ urls: Record<string, string> }>(`${this.base}/presigned-urls-batch`, { keys });
+  }
+
   createDocument(title: string, doc_type: string): Observable<any> {
     return this.http.post(`${this.base}/documents`, { title, doc_type });
   }
