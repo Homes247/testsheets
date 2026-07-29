@@ -190,15 +190,37 @@ import { filter, take } from 'rxjs/operators';
         <!-- Navigation Tabs -->
         <div class="nav-toolbar">
           <div class="nav-tabs">
-            <a class="nav-tab" [class.active]="currentTab === 'Recents'" (click)="currentTab = 'Recents'">Recents</a>
-            <a class="nav-tab" [class.active]="currentTab === 'My Documents'" (click)="currentTab = 'My Documents'">My Documents</a>
-            <a class="nav-tab" [class.active]="currentTab === 'Shared with me'" (click)="currentTab = 'Shared with me'">Shared with me</a>
-            <a class="nav-tab" [class.active]="currentTab === 'Favorites'" (click)="currentTab = 'Favorites'">Favorites</a>
-            <a class="nav-tab" [class.active]="currentTab === 'Trash'" (click)="currentTab = 'Trash'">Trash</a>
+            <a class="nav-tab" [class.active]="currentTab === 'Recents'" (click)="setTab('Recents')">Recents</a>
+            <a class="nav-tab" [class.active]="currentTab === 'My Documents'" (click)="setTab('My Documents')">My Documents</a>
+            <a class="nav-tab" [class.active]="currentTab === 'Shared with me'" (click)="setTab('Shared with me')">Shared with me</a>
+            <a class="nav-tab" [class.active]="currentTab === 'Favorites'" (click)="setTab('Favorites')">Favorites</a>
+            <a class="nav-tab" [class.active]="currentTab === 'Trash'" (click)="setTab('Trash')">Trash</a>
           </div>
           <div class="view-controls">
             <div class="vc-btn" [class.active]="viewMode === 'grid'" (click)="viewMode = 'grid'"><span class="material-symbols-outlined">grid_view</span></div>
             <div class="vc-btn" [class.active]="viewMode === 'list'" (click)="viewMode = 'list'"><span class="material-symbols-outlined">view_list</span></div>
+          </div>
+        </div>
+
+        <!-- Bulk Action Bar -->
+        <div class="bulk-action-bar shadow-sm" *ngIf="selectedDocIds.size > 0">
+          <div class="bab-left">
+            <input type="checkbox" [checked]="isAllSelected" (change)="toggleSelectAll($event)" class="custom-checkbox">
+            <span class="bab-count">{{ selectedDocIds.size }} item{{ selectedDocIds.size > 1 ? 's' : '' }} selected</span>
+          </div>
+          <div class="bab-actions">
+            <button *ngIf="currentTab !== 'Trash'" class="btn btn-outline-danger btn-sm" (click)="bulkMoveToTrash()">
+              <span class="material-symbols-outlined" style="font-size:18px;">delete</span> Move to Trash
+            </button>
+            <button *ngIf="currentTab === 'Trash'" class="btn btn-outline-success btn-sm" (click)="bulkRestore()">
+              <span class="material-symbols-outlined" style="font-size:18px;">restore</span> Restore Selected
+            </button>
+            <button *ngIf="currentTab === 'Trash'" class="btn btn-danger btn-sm" (click)="confirmBulkDeletePermanent()">
+              <span class="material-symbols-outlined" style="font-size:18px;">delete_forever</span> Delete Permanently
+            </button>
+            <button class="btn btn-outline-secondary btn-sm" (click)="clearSelection()">
+              <span class="material-symbols-outlined" style="font-size:18px;">close</span> Cancel
+            </button>
           </div>
         </div>
 
@@ -207,9 +229,11 @@ import { filter, take } from 'rxjs/operators';
           
           <!-- Grid View -->
           <div class="grid-container" *ngIf="viewMode === 'grid'">
-            <div class="grid-section-title">Last opened earlier this week</div>
             <div class="grid-layout">
-              <div class="grid-card" *ngFor="let doc of filteredDocs; trackBy: trackById" (click)="open(doc)">
+              <div class="grid-card" *ngFor="let doc of filteredDocs; trackBy: trackById" (click)="open(doc)" [class.selected-card]="isSelected(doc.id)">
+                <div class="gc-checkbox" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="isSelected(doc.id)" (change)="toggleSelect(doc.id, $event)" class="custom-checkbox">
+                </div>
                 <div class="gc-header">
                   <span class="material-symbols-outlined gc-star" [class.is-fav]="doc._favorite" (click)="toggleFavorite(doc, $event)">
                     {{ doc._favorite ? 'star' : 'star_outline' }}
@@ -230,13 +254,19 @@ import { filter, take } from 'rxjs/operators';
           <!-- List View -->
           <div class="list-container" *ngIf="viewMode === 'list'">
             <div class="list-header">
+              <div class="col-check" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="isAllSelected" (change)="toggleSelectAll($event)" class="custom-checkbox" title="Select All">
+              </div>
               <div class="col-name">Name</div>
               <div class="col-owner">Owner</div>
               <div class="col-date">Last Modified</div>
               <div class="col-actions"></div>
             </div>
             <div class="list-body">
-              <div class="list-row" *ngFor="let doc of filteredDocs; trackBy: trackById" (click)="open(doc)">
+              <div class="list-row" *ngFor="let doc of filteredDocs; trackBy: trackById" (click)="open(doc)" [class.selected-row]="isSelected(doc.id)">
+                <div class="col-check" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="isSelected(doc.id)" (change)="toggleSelect(doc.id, $event)" class="custom-checkbox">
+                </div>
                 <div class="col-name">
                   <span class="material-symbols-outlined fav-icon" [class.is-fav]="doc._favorite" (click)="toggleFavorite(doc, $event)">
                     {{ doc._favorite ? 'star' : 'star_outline' }}
@@ -350,6 +380,23 @@ import { filter, take } from 'rxjs/operators';
           <div class="dm-footer">
             <button class="btn btn-outline-primary" (click)="cancelDelete()">Cancel</button>
             <button class="btn btn-danger" (click)="confirmDelete()">{{ deleteConfirmPermanent ? 'Permanently Delete' : 'Move to Trash' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk Delete Permanent Modal -->
+      <div class="modal-backdrop" *ngIf="bulkDeleteConfirmOpen" (click)="bulkDeleteConfirmOpen = false">
+        <div class="delete-modal shadow-lg" (click)="$event.stopPropagation()">
+          <div class="dm-header">
+            <span class="material-symbols-outlined" style="color: #d32f2f;">warning</span>
+            <span>Confirm Bulk Permanent Deletion</span>
+          </div>
+          <div class="dm-body">
+            <p>Are you sure you want to permanently delete <strong>{{ selectedDocIds.size }}</strong> items? This action cannot be undone.</p>
+          </div>
+          <div class="dm-footer">
+            <button class="btn btn-outline-primary" (click)="bulkDeleteConfirmOpen = false">Cancel</button>
+            <button class="btn btn-danger" (click)="executeBulkDeletePermanent()">Permanently Delete</button>
           </div>
         </div>
       </div>
@@ -575,6 +622,24 @@ import { filter, take } from 'rxjs/operators';
     .empty-state { padding: 64px 24px; text-align: center; color: #5f6368; font-size: 15px; }
     .shadow-lg { box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
     
+    /* Bulk Action Bar */
+    .bulk-action-bar { display: flex; align-items: center; justify-content: space-between; background: #e8f0fe; border: 1px solid #d2e3fc; border-radius: 8px; padding: 10px 20px; margin-top: 16px; animation: fadeIn 0.2s ease-out; }
+    .bab-left { display: flex; align-items: center; gap: 12px; }
+    .bab-count { font-size: 14px; font-weight: 600; color: #1967d2; }
+    .bab-actions { display: flex; align-items: center; gap: 10px; }
+    .btn-sm { height: 32px; padding: 0 12px; font-size: 13px; }
+    .btn-outline-danger { background: #ffffff; border: 1px solid #d32f2f; color: #d32f2f; }
+    .btn-outline-danger:hover { background: #fdeded; }
+    .btn-outline-success { background: #ffffff; border: 1px solid #059669; color: #059669; }
+    .btn-outline-success:hover { background: #ecfdf5; }
+    .btn-outline-secondary { background: #ffffff; border: 1px solid #5f6368; color: #5f6368; }
+    .btn-outline-secondary:hover { background: #f1f3f4; }
+    .col-check { width: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .custom-checkbox { width: 17px; height: 17px; cursor: pointer; accent-color: #1a73e8; margin: 0; }
+    .selected-row { background: #e8f0fe !important; }
+    .selected-card { border-color: #1a73e8 !important; background: #f4f8fe !important; box-shadow: 0 2px 8px rgba(26,115,232,0.2) !important; }
+    .gc-checkbox { display: flex; align-items: center; margin-bottom: 4px; }
+
     .toast { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(20px); background: #323232; color: #fff; padding: 12px 24px; border-radius: 4px; font-size: 14px; opacity: 0; transition: all .25s; pointer-events: none; z-index: 1000; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -611,6 +676,9 @@ export class DashboardComponent implements OnInit {
   docs: any[] = [];
   toastVisible = false;
   toastMsg = '';
+
+  selectedDocIds: Set<string> = new Set();
+  bulkDeleteConfirmOpen = false;
 
   menus: { [key: string]: boolean } = {
     launcher: false,
@@ -977,6 +1045,125 @@ export class DashboardComponent implements OnInit {
 
   cancelDelete() {
     this.deleteConfirmDoc = null;
+  }
+
+  setTab(tab: string) {
+    this.currentTab = tab;
+    this.clearSelection();
+  }
+
+  toggleSelect(docId: string, event: Event) {
+    event.stopPropagation();
+    if (this.selectedDocIds.has(docId)) {
+      this.selectedDocIds.delete(docId);
+    } else {
+      this.selectedDocIds.add(docId);
+    }
+  }
+
+  isSelected(docId: string): boolean {
+    return this.selectedDocIds.has(docId);
+  }
+
+  get isAllSelected(): boolean {
+    const list = this.filteredDocs;
+    if (!list || list.length === 0) return false;
+    return list.every(d => this.selectedDocIds.has(d.id));
+  }
+
+  toggleSelectAll(event?: Event) {
+    if (event) event.stopPropagation();
+    const list = this.filteredDocs;
+    if (this.isAllSelected) {
+      list.forEach(d => this.selectedDocIds.delete(d.id));
+    } else {
+      list.forEach(d => this.selectedDocIds.add(d.id));
+    }
+  }
+
+  clearSelection() {
+    this.selectedDocIds.clear();
+  }
+
+  bulkMoveToTrash() {
+    if (this.selectedDocIds.size === 0) return;
+    const ids = Array.from(this.selectedDocIds);
+    let completed = 0;
+    ids.forEach(id => {
+      this.api.deleteDocument(id).subscribe({
+        next: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.showToast(`${ids.length} item${ids.length > 1 ? 's' : ''} moved to trash.`);
+            this.clearSelection();
+            this.load();
+          }
+        },
+        error: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.clearSelection();
+            this.load();
+          }
+        }
+      });
+    });
+  }
+
+  bulkRestore() {
+    if (this.selectedDocIds.size === 0) return;
+    const ids = Array.from(this.selectedDocIds);
+    let completed = 0;
+    ids.forEach(id => {
+      this.api.restoreDocument(id).subscribe({
+        next: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.showToast(`${ids.length} item${ids.length > 1 ? 's' : ''} restored.`);
+            this.clearSelection();
+            this.load();
+          }
+        },
+        error: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.clearSelection();
+            this.load();
+          }
+        }
+      });
+    });
+  }
+
+  confirmBulkDeletePermanent() {
+    this.bulkDeleteConfirmOpen = true;
+  }
+
+  executeBulkDeletePermanent() {
+    if (this.selectedDocIds.size === 0) return;
+    const ids = Array.from(this.selectedDocIds);
+    let completed = 0;
+    ids.forEach(id => {
+      this.api.deleteDocument(id).subscribe({
+        next: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.showToast(`${ids.length} item${ids.length > 1 ? 's' : ''} permanently deleted.`);
+            this.clearSelection();
+            this.bulkDeleteConfirmOpen = false;
+            this.load();
+          }
+        },
+        error: () => {
+          completed++;
+          if (completed === ids.length) {
+            this.clearSelection();
+            this.bulkDeleteConfirmOpen = false;
+            this.load();
+          }
+        }
+      });
+    });
   }
 
   restore(doc: any, event: Event) {
