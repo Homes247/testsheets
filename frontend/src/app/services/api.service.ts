@@ -28,6 +28,16 @@ export class ApiService implements OnDestroy {
 
   constructor(private http: HttpClient) { }
 
+  uploadFile(file: File): Observable<{ key: string, url: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<{ key: string, url: string }>(`${this.base}/upload`, formData);
+  }
+
+  getPresignedUrl(key: string): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base}/presigned-url?key=${encodeURIComponent(key)}`);
+  }
+
   createDocument(title: string, doc_type: string): Observable<any> {
     return this.http.post(`${this.base}/documents`, { title, doc_type });
   }
@@ -235,6 +245,7 @@ export class ApiService implements OnDestroy {
     };
     return this.messageSubject.asObservable();
   }
+
 
   sendUpdate(content: string, title: string, autosave?: boolean): void {
     if (this.socket?.readyState === WebSocket.OPEN) {

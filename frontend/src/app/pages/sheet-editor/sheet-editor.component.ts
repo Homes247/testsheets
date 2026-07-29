@@ -5707,6 +5707,11 @@ export interface AuditOp {
 })
 
 export class SheetEditorComponent implements OnInit, OnDestroy {
+  private activeMoveListener: ((e: MouseEvent) => void) | null = null;
+  private activeUpListener: ((e: MouseEvent) => void) | null = null;
+  private activeClickListener: ((e: MouseEvent) => void) | null = null;
+  private activeKeydownListener: ((e: KeyboardEvent) => void) | null = null;
+
   shortcutCategoryFilter: string = 'all';
   shortcutSearchQuery: string = '';
 
@@ -6802,6 +6807,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
           action: msg.value ? (this.cellEditHistory[key].length === 0 ? 'ADDED' : 'EDITED') : 'CLEARED',
           value: msg.value
         });
+        if (this.cellEditHistory[key].length > 50) this.cellEditHistory[key].pop();
 
         if (msg.sheetIdx === this.currentSheetIdx) {
           this.cells[msg.r][msg.c] = msg.value ?? '';
@@ -7125,17 +7131,19 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         if (clipboardData.items[i].type.indexOf('image') !== -1) {
           const file = clipboardData.items[i].getAsFile();
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-              this.pushHistory({ action_type: 'paste-image', target_range: this.getA1(this.selectedRow, this.selectedCol) });
-              this.cells[this.selectedRow][this.selectedCol] = ev.target!.result as string;
-              this.formulaBarValue = '[IMAGE]';
-              this.onCellChange();
-              this.save();
-              this.showToast('Image pasted into cell.');
-              if (this.cdr) this.cdr.detectChanges();
-            };
-            reader.readAsDataURL(file);
+            this.pushHistory({ action_type: 'paste-image', target_range: this.getA1(this.selectedRow, this.selectedCol) });
+            this.showToast('Uploading image...');
+            this.api.uploadFile(file).subscribe({
+              next: (res) => {
+                this.cells[this.selectedRow][this.selectedCol] = `[IMAGE:${res.key}]`;
+                this.formulaBarValue = '[IMAGE]';
+                this.onCellChange();
+                this.save();
+                this.showToast('Image pasted into cell.');
+                if (this.cdr) this.cdr.detectChanges();
+              },
+              error: () => this.showToast('Failed to upload image.')
+            });
             return;
           }
         }
@@ -7560,17 +7568,19 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     scrollContainer.style.overflowY = 'auto';
     overlay.appendChild(scrollContainer);
 
-    const closeOverlay = (e: MouseEvent) => {
+    this.activeClickListener = (e: MouseEvent) => {
       if (!overlay.contains(e.target as Node)) {
         if (document.body.contains(overlay)) {
           document.body.removeChild(overlay);
         }
-        document.removeEventListener('click', closeOverlay);
-        document.removeEventListener('keydown', onKeyDown);
+        if (this.activeClickListener) document.removeEventListener('click', this.activeClickListener);
+        if (this.activeKeydownListener) document.removeEventListener('keydown', this.activeKeydownListener);
+        this.activeClickListener = null;
+        this.activeKeydownListener = null;
       }
     };
 
-    const onKeyDown = (e: KeyboardEvent) => {
+    this.activeKeydownListener = (e: KeyboardEvent) => {
       const rows = Array.from(scrollContainer.querySelectorAll('.option-row')) as HTMLElement[];
       const currentIndex = rows.indexOf(document.activeElement as HTMLElement);
 
@@ -7596,8 +7606,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         if (document.body.contains(overlay)) {
           document.body.removeChild(overlay);
         }
-        document.removeEventListener('click', closeOverlay);
-        document.removeEventListener('keydown', onKeyDown);
+        if (this.activeClickListener) document.removeEventListener('click', this.activeClickListener);
+        if (this.activeKeydownListener) document.removeEventListener('keydown', this.activeKeydownListener);
+        this.activeClickListener = null;
+        this.activeKeydownListener = null;
       }
     };
 
@@ -7614,8 +7626,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       if (document.body.contains(overlay)) {
         document.body.removeChild(overlay);
       }
-      document.removeEventListener('click', closeOverlay);
-      document.removeEventListener('keydown', onKeyDown);
+      if (this.activeClickListener) document.removeEventListener('click', this.activeClickListener);
+      if (this.activeKeydownListener) document.removeEventListener('keydown', this.activeKeydownListener);
+      this.activeClickListener = null;
+      this.activeKeydownListener = null;
     };
 
     // TASK 6b: Clear value option as first item inside scrollable list
@@ -7675,8 +7689,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
           if (document.body.contains(overlay)) {
             document.body.removeChild(overlay);
           }
-          document.removeEventListener('click', closeOverlay);
-          document.removeEventListener('keydown', onKeyDown);
+          if (this.activeClickListener) document.removeEventListener('click', this.activeClickListener);
+          if (this.activeKeydownListener) document.removeEventListener('keydown', this.activeKeydownListener);
+          this.activeClickListener = null;
+          this.activeKeydownListener = null;
         }
       };
       scrollContainer.appendChild(row);
@@ -7703,8 +7719,10 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       if (document.body.contains(overlay)) {
         document.body.removeChild(overlay);
       }
-      document.removeEventListener('click', closeOverlay);
-      document.removeEventListener('keydown', onKeyDown);
+      if (this.activeClickListener) document.removeEventListener('click', this.activeClickListener);
+      if (this.activeKeydownListener) document.removeEventListener('keydown', this.activeKeydownListener);
+      this.activeClickListener = null;
+      this.activeKeydownListener = null;
       this.selectCell(r, c);
       this.rangeStart = { r, c };
       this.rangeEnd = { r, c };
@@ -7719,8 +7737,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
     // use setTimeout so the current click doesn't instantly close it
     setTimeout(() => {
-      document.addEventListener('click', closeOverlay);
-      document.addEventListener('keydown', onKeyDown);
+      if (this.activeClickListener) document.addEventListener('click', this.activeClickListener);
+      if (this.activeKeydownListener) document.addEventListener('keydown', this.activeKeydownListener);
     }, 0);
   }
 
@@ -9071,9 +9089,13 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     const val = this.cells[r]?.[c];
     if (typeof val !== 'string') return false;
     if (val.trim().startsWith('data:image')) return true;
+    if (val.trim().startsWith('[IMAGE:')) return true;
     if (val.trim().toUpperCase().startsWith('=IMAGE(')) return true;
     return false;
   }
+
+  presignedUrlCache: Record<string, { url: string, expiresAt: number }> = {};
+  pendingUrlFetches: Set<string> = new Set();
 
   getImageSrc(val: string): string {
     if (!val || typeof val !== 'string') return '';
@@ -9081,6 +9103,26 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     if (val.toUpperCase().startsWith('=IMAGE(')) {
       const match = val.match(/=IMAGE\(\s*["'](.*?)["']/i);
       if (match) return match[1];
+    }
+    if (val.startsWith('[IMAGE:')) {
+      const key = val.substring(7, val.length - 1);
+      const cached = this.presignedUrlCache[key];
+      const now = Date.now();
+      if (cached && (cached.expiresAt - now > 300000)) {
+        return cached.url;
+      }
+      if (!this.pendingUrlFetches.has(key)) {
+        this.pendingUrlFetches.add(key);
+        this.api.getPresignedUrl(key).subscribe({
+          next: (res) => {
+            this.presignedUrlCache[key] = { url: res.url, expiresAt: Date.now() + 3600 * 1000 };
+            this.pendingUrlFetches.delete(key);
+            if (this.cdr) this.cdr.detectChanges();
+          },
+          error: () => this.pendingUrlFetches.delete(key)
+        });
+      }
+      return 'assets/loading-placeholder.png';
     }
     return val;
   }
@@ -9096,16 +9138,19 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   onImageFileSelected(e: Event) {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      this.pushHistory();
-      this.cells[this.selectedRow][this.selectedCol] = ev.target!.result as string;
-      this.formulaBarValue = '[IMAGE]';
-      this.onCellChange();
-      this.save();
-      this.showToast('Image inserted into cell.');
-    };
-    reader.readAsDataURL(file);
+    this.showToast('Uploading image...');
+    this.api.uploadFile(file).subscribe({
+      next: (res) => {
+        this.pushHistory();
+        this.cells[this.selectedRow][this.selectedCol] = `[IMAGE:${res.key}]`;
+        this.formulaBarValue = '[IMAGE]';
+        this.onCellChange();
+        this.save();
+        this.showToast('Image inserted into cell.');
+        if (this.cdr) this.cdr.detectChanges();
+      },
+      error: () => this.showToast('Failed to upload image.')
+    });
     (e.target as HTMLInputElement).value = '';
   }
 
@@ -10241,19 +10286,21 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     const initialX = shape.x;
     const initialY = shape.y;
 
-    const moveListener = (moveEvent: MouseEvent) => {
+    this.activeMoveListener = (moveEvent: MouseEvent) => {
       shape.x = initialX + (moveEvent.clientX - startX);
       shape.y = initialY + (moveEvent.clientY - startY);
     };
 
-    const upListener = () => {
-      document.removeEventListener('mousemove', moveListener);
-      document.removeEventListener('mouseup', upListener);
+    this.activeUpListener = (e: MouseEvent) => {
+      if (this.activeMoveListener) document.removeEventListener('mousemove', this.activeMoveListener);
+      if (this.activeUpListener) document.removeEventListener('mouseup', this.activeUpListener);
+      this.activeMoveListener = null;
+      this.activeUpListener = null;
       this.save();
     };
 
-    document.addEventListener('mousemove', moveListener);
-    document.addEventListener('mouseup', upListener);
+    document.addEventListener('mousemove', this.activeMoveListener);
+    document.addEventListener('mouseup', this.activeUpListener);
 
     e.preventDefault();
   }
@@ -10843,21 +10890,23 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     this.dragStartXP = e.clientX - this.emojiPickerX;
     this.dragStartYP = e.clientY - this.emojiPickerY;
     
-    const mouseMoveHandler = (ev: MouseEvent) => {
+    this.activeMoveListener = (ev: MouseEvent) => {
       if (this.isDraggingEmoji) {
         this.emojiPickerX = ev.clientX - this.dragStartXP;
         this.emojiPickerY = ev.clientY - this.dragStartYP;
       }
     };
     
-    const mouseUpHandler = () => {
+    this.activeUpListener = (e: MouseEvent) => {
       this.isDraggingEmoji = false;
-      document.removeEventListener('mousemove', mouseMoveHandler);
-      document.removeEventListener('mouseup', mouseUpHandler);
+      if (this.activeMoveListener) document.removeEventListener('mousemove', this.activeMoveListener);
+      if (this.activeUpListener) document.removeEventListener('mouseup', this.activeUpListener);
+      this.activeMoveListener = null;
+      this.activeUpListener = null;
     };
     
-    document.addEventListener('mousemove', mouseMoveHandler);
-    document.addEventListener('mouseup', mouseUpHandler);
+    document.addEventListener('mousemove', this.activeMoveListener);
+    document.addEventListener('mouseup', this.activeUpListener);
   }
 
   insertEmoji() {
@@ -13500,6 +13549,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
         action: action,
         value: val
       });
+      if (this.cellEditHistory[key].length > 50) this.cellEditHistory[key].pop();
     }
 
     if (this.applyingRemote) return;
@@ -15283,16 +15333,18 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       this.resizeLineX = event.clientX - rect.left + gridWrap.scrollLeft;
     }
 
-    const moveListener = (e: MouseEvent) => {
+    this.activeMoveListener = (e: MouseEvent) => {
       if (gridWrap) {
         const rect = gridWrap.getBoundingClientRect();
         this.resizeLineX = e.clientX - rect.left + gridWrap.scrollLeft;
       }
     };
 
-    const upListener = (e: MouseEvent) => {
-      document.removeEventListener('mousemove', moveListener);
-      document.removeEventListener('mouseup', upListener);
+    this.activeUpListener = (e: MouseEvent) => {
+      if (this.activeMoveListener) document.removeEventListener('mousemove', this.activeMoveListener);
+      if (this.activeUpListener) document.removeEventListener('mouseup', this.activeUpListener);
+      this.activeMoveListener = null;
+      this.activeUpListener = null;
       const delta = e.clientX - this.resizeStartX;
       const newWidth = Math.max(30, this.resizeStartSize + delta);
 
@@ -15304,8 +15356,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       this.save();
     };
 
-    document.addEventListener('mousemove', moveListener);
-    document.addEventListener('mouseup', upListener);
+    document.addEventListener('mousemove', this.activeMoveListener);
+    document.addEventListener('mouseup', this.activeUpListener);
   }
 
   startRowResize(event: MouseEvent, r: number) {
@@ -15321,16 +15373,18 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       this.resizeLineY = event.clientY - rect.top + gridWrap.scrollTop;
     }
 
-    const moveListener = (e: MouseEvent) => {
+    this.activeMoveListener = (e: MouseEvent) => {
       if (gridWrap) {
         const rect = gridWrap.getBoundingClientRect();
         this.resizeLineY = e.clientY - rect.top + gridWrap.scrollTop;
       }
     };
 
-    const upListener = (e: MouseEvent) => {
-      document.removeEventListener('mousemove', moveListener);
-      document.removeEventListener('mouseup', upListener);
+    this.activeUpListener = (e: MouseEvent) => {
+      if (this.activeMoveListener) document.removeEventListener('mousemove', this.activeMoveListener);
+      if (this.activeUpListener) document.removeEventListener('mouseup', this.activeUpListener);
+      this.activeMoveListener = null;
+      this.activeUpListener = null;
       const delta = e.clientY - this.resizeStartY;
       const newHeight = Math.max(20, this.resizeStartSize + delta);
 
@@ -15342,8 +15396,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
       this.save();
     };
 
-    document.addEventListener('mousemove', moveListener);
-    document.addEventListener('mouseup', upListener);
+    document.addEventListener('mousemove', this.activeMoveListener);
+    document.addEventListener('mouseup', this.activeUpListener);
   }
 
   copySheet(idx: number) {
@@ -15581,7 +15635,28 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
 
   back() { this.save(true); this.router.navigate(['/']); }
   ngOnDestroy() {
-    this.saveLocalDraft();
+    if (this.activeMoveListener) document.removeEventListener('mousemove', this.activeMoveListener);
+    if (this.activeUpListener) document.removeEventListener('mouseup', this.activeUpListener);
+    if (this.activeClickListener) document.removeEventListener('click', this.activeClickListener);
+    if (this.activeKeydownListener) document.removeEventListener('keydown', this.activeKeydownListener);
+    
+    try {
+      const estimatedSize = JSON.stringify(this.getSparse()).length;
+      if (estimatedSize < 4 * 1024 * 1024) {
+        this.saveLocalDraft();
+      } else {
+        console.warn('Document too large for local draft backup, skipping.');
+      }
+    } catch (e) {
+      console.warn('Failed to estimate or save local draft', e);
+    }
+
+    this.cells = [];
+    this.sheets = [];
+    this.history = [];
+    this.editHistoryData = [];
+    this.cellEditHistory = {};
+
     this.syncSub?.unsubscribe();
     this.api.disconnectSync();
     if (this.saveSubscription) this.saveSubscription.unsubscribe();

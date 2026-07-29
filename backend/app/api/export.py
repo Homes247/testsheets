@@ -2,6 +2,7 @@ from openpyxl.utils import bound_dictionary
 import io, json
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from fastapi import UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from app.database import get_db
@@ -277,3 +278,49 @@ def _export_pdf(title: str, content: dict, password: str = None):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{title}.pdf"'}
     )
+
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
+    import uuid
+    import asyncio
+
+    key = f"uploads/{uuid.uuid4()}-{file.filename}"
+    content_bytes = await file.read()
+
+    def do_upload():
+        _s3_client.put_object(
+            Bucket=R2_BUCKET_NAME,
+            Key=key,
+            Body=content_bytes,
+            ContentType=file.content_type
+        )
+        return _s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': R2_BUCKET_NAME, 'Key': key},
+            ExpiresIn=3600
+        )
+
+    url = await asyncio.to_thread(do_upload)
+    return {"key": key, "url": url}
+
+@router.get("/presigned-url")
+async def get_presigned_url(
+    key: str,
+    db: AsyncSession = Depends(get_db)
+):
+    from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
+    import asyncio
+
+    def do_gen():
+        return _s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': R2_BUCKET_NAME, 'Key': key},
+            ExpiresIn=3600
+        )
+
+    url = await asyncio.to_thread(do_gen)
+    return {"url": url}
