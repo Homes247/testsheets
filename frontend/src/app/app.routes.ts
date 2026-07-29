@@ -16,15 +16,6 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/sheet-editor/sheet-editor.component').then(m => m.SheetEditorComponent)
   },
-  {
-    path: 'doc/:id',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/doc-editor/doc-editor.component').then(m => m.DocEditorComponent)
-  },
-  {
-    path: 'slide/:id',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/slide-editor/slide-editor.component').then(m => m.SlideEditorComponent)
-  },
+
   { path: '**', redirectTo: '' }
 ];
