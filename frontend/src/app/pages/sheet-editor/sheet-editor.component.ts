@@ -5857,7 +5857,7 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
   }
 
   goHome() {
-    window.location.href = 'https://sheets.vsnaptechnology.com/';
+    this.router.navigate(['/']);
   }
 
   get selectedRowCount(): number {
@@ -15515,22 +15515,33 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     if (typeof p === 'string') {
       try { p = JSON.parse(p); } catch { return; }
     }
-    if (Array.isArray(p) && p.length > 0) p = p[0];
-    if (p.cells) {
+    let isMultiSheetArray = false;
+    if (Array.isArray(p) && p.length > 0 && p[0].cells !== undefined) {
+      isMultiSheetArray = true;
+    } else if (Array.isArray(p) && p.length > 0) {
+      p = p[0];
+    }
+
+    if (isMultiSheetArray) {
+      p = { _importedSheets: p };
+    }
+
+    if (p.cells && !p._importedSheets) {
       for (let r = 0; r < this.ROWS; r++) {
         if (!this.cells[r]) this.cells[r] = [];
         for (let c = 0; c < this.COLS; c++)
           this.cells[r][c] = p.cells[r]?.[c] ?? '';
       }
+      this.sheets[this.currentSheetIdx].cells = p.cells;
     }
-    if (p.formats) {
+    if (p.formats && !p._importedSheets) {
       this.formats = { ...p.formats };
     }
-    if (p.validations) {
+    if (p.validations && !p._importedSheets) {
       this.validations = { ...p.validations };
     }
-    if (p.colWidths && this.sheets[this.currentSheetIdx]) this.sheets[this.currentSheetIdx].colWidths = p.colWidths;
-    if (p.rowHeights && this.sheets[this.currentSheetIdx]) this.sheets[this.currentSheetIdx].rowHeights = p.rowHeights;
+    if (p.colWidths && this.sheets[this.currentSheetIdx] && !p._importedSheets) this.sheets[this.currentSheetIdx].colWidths = p.colWidths;
+    if (p.rowHeights && this.sheets[this.currentSheetIdx] && !p._importedSheets) this.sheets[this.currentSheetIdx].rowHeights = p.rowHeights;
     if (p._importedSheets) {
       this.sheets = p._importedSheets.map((sheet: any) => {
         let cells2d: string[][];

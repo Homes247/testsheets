@@ -199,6 +199,17 @@ def repair_zoho_rich_values(content_bytes: bytes) -> bytes:
     import openpyxl
     from openpyxl.drawing.image import Image as OpenpyxlImage
     
+    # Check if it's a Zoho sheet before doing heavy XML parsing
+    try:
+        import io
+        with zipfile.ZipFile(io.BytesIO(content_bytes), 'r') as z:
+            if 'docProps/app.xml' in z.namelist():
+                app_xml = z.read('docProps/app.xml')
+                if b'Zoho' not in app_xml and b'zoho' not in app_xml:
+                    return content_bytes
+    except Exception:
+        pass
+        
     NS = {
         'main': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
         'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
@@ -305,7 +316,7 @@ def repair_zoho_rich_values(content_bytes: bytes) -> bytes:
             return f.read()
     except Exception as e:
         print(f"Error repairing zoho sheet: {e}")
-        return None
+        return content_bytes
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
 

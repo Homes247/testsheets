@@ -132,7 +132,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                 <div class="msg-row" [id]="'msg-' + msg.id" [class.mine]="msg.is_mine" [class.other]="!msg.is_mine">
                     <input type="checkbox" *ngIf="selectionMode && !msg.is_mine" [checked]="selectedMessages.has(msg.id)" (change)="toggleMessageSelection(msg)" style="margin-right:8px; margin-bottom:12px;">
                     <div style="display:flex; flex-direction:column; max-width:100%;">
-                        <div *ngIf="!msg.is_file" class="msg-bubble" [ngClass]="{'emoji-only': isOnlyEmoji(msg.message), 'media-only': msg.message.startsWith('[Sticker]') || msg.message.startsWith('[GIF]'), 'deleted-msg': msg.message === '[[DELETED]]'}">
+                        <div *ngIf="!msg.is_file || msg.message === '[[DELETED]]'" class="msg-bubble" [ngClass]="{'emoji-only': isOnlyEmoji(msg.message), 'media-only': msg.message.startsWith('[Sticker]') || msg.message.startsWith('[GIF]'), 'deleted-msg': msg.message === '[[DELETED]]'}">
                             <ng-container *ngIf="msg.message === '[[DELETED]]'">
                                 <div style="display:flex; align-items:center; gap:6px; font-style:italic; opacity:0.7">
                                     <span class="material-symbols-outlined" style="font-size:16px;">block</span>
@@ -163,7 +163,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                     </div>
                                 </div>
                             </ng-container>
-                            <div class="msg-hover-actions" *ngIf="msg.message !== '[[DELETED]]'">
+                            <div class="msg-hover-actions" *ngIf="msg.message !== '[[DELETED]]' && !msg.message.startsWith('[Sticker]') && !msg.message.startsWith('[GIF]')">
                                 <ng-container *ngIf="deletingMessageId !== msg.id">
                                     <span *ngIf="!msg.message?.startsWith('[Sticker]') && !msg.message?.startsWith('[GIF]')" class="material-symbols-outlined" title="React" (click)="reactToMessage(msg, $event)">add_reaction</span>
                                     <span class="material-symbols-outlined" title="Reply" (click)="replyToMessage(msg, $event)">reply</span>
@@ -197,7 +197,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                 <span *ngFor="let r of getReactionsList(msg)" (click)="addReaction(msg, r.split(' ')[0])">{{ r }}</span>
                             </div>
                         </div>
-                        <div *ngIf="msg.is_file" (click)="openFile(msg.file_path, msg.message, msg, false)" [ngClass]="(isImage(msg.message || msg.file_path) || isVideo(msg.message || msg.file_path)) ? 'msg-image-wrapper' : 'msg-file-card'">
+                        <div *ngIf="msg.is_file && msg.message !== '[[DELETED]]'" (click)="openFile(msg.file_path, msg.message, msg, false)" [ngClass]="(isImage(msg.message || msg.file_path) || isVideo(msg.message || msg.file_path)) ? 'msg-image-wrapper' : 'msg-file-card'">
                             <img *ngIf="isImage(msg.message || msg.file_path)" [src]="getFileUrl(msg.file_path)" class="chat-image-preview" (error)="$event.stopPropagation()">
                             <div *ngIf="isVideo(msg.message || msg.file_path)" class="chat-video-preview" (click)="$event.stopPropagation()">
                                 <video [src]="getFileUrl(msg.file_path)" controls preload="metadata" style="max-width: 280px; max-height: 280px; border-radius: 8px; display: block; background: #000; width: 100%;"></video>
@@ -391,7 +391,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                     <input type="checkbox" *ngIf="selectionMode && !msg.is_mine" [checked]="selectedMessages.has(msg.id)" (change)="toggleMessageSelection(msg)" style="margin-right:8px; margin-bottom:12px;">
                     <div style="display:flex; flex-direction:column; max-width:100%;">
                         <span *ngIf="!msg.is_mine" style="font-size:11px; color:var(--text-secondary); margin-bottom:2px; margin-left:4px;">{{ msg.sender_name }}</span>
-                        <div *ngIf="!msg.is_file" class="msg-bubble" [ngClass]="{'emoji-only': isOnlyEmoji(msg.message), 'media-only': msg.message.startsWith('[Sticker]') || msg.message.startsWith('[GIF]'), 'deleted-msg': msg.message === '[[DELETED]]'}">
+                        <div *ngIf="!msg.is_file || msg.message === '[[DELETED]]'" class="msg-bubble" [ngClass]="{'emoji-only': isOnlyEmoji(msg.message), 'media-only': msg.message.startsWith('[Sticker]') || msg.message.startsWith('[GIF]'), 'deleted-msg': msg.message === '[[DELETED]]'}">
                             <ng-container *ngIf="msg.message === '[[DELETED]]'">
                                 <div style="display:flex; align-items:center; gap:6px; font-style:italic; opacity:0.7">
                                     <span class="material-symbols-outlined" style="font-size:16px;">block</span>
@@ -456,7 +456,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                 <span *ngFor="let r of getReactionsList(msg)" (click)="addReaction(msg, r.split(' ')[0])">{{ r }}</span>
                             </div>
                         </div>
-                        <div *ngIf="msg.is_file" (click)="openFile(msg.file_path, msg.message, msg, true)" [ngClass]="(isImage(msg.message || msg.file_path) || isVideo(msg.message || msg.file_path)) ? 'msg-image-wrapper' : 'msg-file-card'">
+                        <div *ngIf="msg.is_file && msg.message !== '[[DELETED]]'" (click)="openFile(msg.file_path, msg.message, msg, true)" [ngClass]="(isImage(msg.message || msg.file_path) || isVideo(msg.message || msg.file_path)) ? 'msg-image-wrapper' : 'msg-file-card'">
                             <img *ngIf="isImage(msg.message || msg.file_path)" [src]="getFileUrl(msg.file_path)" class="chat-image-preview" (error)="$event.stopPropagation()">
                             <div *ngIf="isVideo(msg.message || msg.file_path)" class="chat-video-preview" (click)="$event.stopPropagation()">
                                 <video [src]="getFileUrl(msg.file_path)" controls preload="metadata" style="max-width: 280px; max-height: 280px; border-radius: 8px; display: block; background: #000; width: 100%;"></video>
@@ -468,7 +468,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
                                 </div>
                                 <span class="ac-name">{{ cleanMessage(msg.message) || 'Attachment' }}</span>
                             </ng-container>
-                            <div class="msg-hover-actions">
+                            <div class="msg-hover-actions" *ngIf="msg.message !== '[[DELETED]]' && !msg.message.startsWith('[Sticker]') && !msg.message.startsWith('[GIF]')">
                                 <ng-container *ngIf="deletingMessageId !== msg.id">
                                     <span class="material-symbols-outlined" title="React" (click)="reactToMessage(msg, $event)">add_reaction</span>
                                     <span class="material-symbols-outlined" title="Reply" (click)="replyToMessage(msg, $event)">reply</span>

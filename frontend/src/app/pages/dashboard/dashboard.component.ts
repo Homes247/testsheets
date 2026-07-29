@@ -354,23 +354,28 @@ import { filter, take } from 'rxjs/operators';
         </div>
       </div>
 
-      <!-- Upload Progress Overlay (2026 Premium Style) -->
+      <!-- Full Screen Blocking Upload Overlay -->
       <div class="upload-overlay" *ngIf="isUploading">
-        <div class="upload-modal shadow-lg">
-           <div class="um-icon">
-              <span class="material-symbols-outlined" style="font-size:32px; color:#1a73e8;">cloud_upload</span>
-           </div>
-           <div class="um-title">Uploading Document...</div>
-           <div class="um-subtitle">Please wait while your file is securely uploaded and processed.</div>
-           
-           <div class="um-progress-container">
-              <div class="um-progress-bar" [style.width]="uploadProgress + '%'"></div>
-           </div>
-           
-           <div class="um-stats">
-              <div class="um-percent">{{ uploadProgress }}%</div>
-              <div class="um-time">{{ uploadTimeLeft }}</div>
-           </div>
+        <div class="upload-modal">
+          <div class="upload-modal-header">
+             <span>Uploading 1 item...</span>
+          </div>
+          <div class="upload-modal-body">
+             <div class="transfer-item">
+                <div class="transfer-item-icon">
+                   <span class="material-symbols-outlined" style="color:#26A96C;">table</span>
+                </div>
+                <div class="transfer-item-info">
+                   <div class="transfer-item-name">{{ currentUploadName }}</div>
+                   <div class="transfer-item-progress-container">
+                      <div class="transfer-item-progress-bar" [style.width]="uploadProgress + '%'"></div>
+                   </div>
+                   <div class="transfer-item-status">
+                      <span>{{ uploadTimeLeft }} &bull; {{ uploadProgress }}%</span>
+                   </div>
+                </div>
+             </div>
+          </div>
         </div>
       </div>
     </div>
@@ -584,18 +589,18 @@ import { filter, take } from 'rxjs/operators';
     .btn-danger:hover { background: #b71c1c; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
     
-    /* Upload Overlay (2026 Premium) */
-    .upload-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 9999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.3s ease-out; }
-    .upload-modal { background: #fff; border-radius: 16px; padding: 40px; width: 420px; text-align: center; border: 1px solid rgba(0,0,0,0.08); box-shadow: 0 20px 40px rgba(0,0,0,0.1); animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-    .um-icon { width: 64px; height: 64px; border-radius: 50%; background: #e8f0fe; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; }
-    .um-title { font-size: 20px; font-weight: 600; color: #202124; margin-bottom: 8px; letter-spacing: -0.3px; }
-    .um-subtitle { font-size: 14px; color: #5f6368; line-height: 1.5; margin-bottom: 28px; padding: 0 20px; }
-    .um-progress-container { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; margin-bottom: 16px; position: relative; }
-    .um-progress-bar { height: 100%; background: linear-gradient(90deg, #1a73e8, #4285f4); border-radius: 4px; transition: width 0.2s ease-out; position: relative; overflow: hidden; }
-    .um-progress-bar::after { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%); animation: shimmer 1.5s infinite; }
-    .um-stats { display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; }
-    .um-percent { color: #1a73e8; font-weight: 600; font-size: 14px; }
-    .um-time { color: #5f6368; }
+    /* Upload Overlay (Blocking) */
+    .upload-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; justify-content: center; align-items: center; animation: fadeIn 0.2s ease-out; }
+    .upload-modal { width: 400px; max-width: 90vw; background: #fff; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); display: flex; flex-direction: column; overflow: hidden; animation: modalIn 0.2s ease-out; }
+    .upload-modal-header { padding: 16px 20px; background: #323232; color: #fff; font-size: 15px; font-weight: 500; }
+    .upload-modal-body { padding: 20px; }
+    .transfer-item { display: flex; align-items: center; }
+    .transfer-item-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: #f0f8f5; border-radius: 4px; margin-right: 12px; }
+    .transfer-item-info { flex: 1; }
+    .transfer-item-name { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; }
+    .transfer-item-progress-container { height: 4px; background: #e0e0e0; border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+    .transfer-item-progress-bar { height: 100%; background: #26A96C; border-radius: 2px; transition: width 0.2s ease-out; }
+    .transfer-item-status { font-size: 12px; color: #666; }
     
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes slideUp { from { opacity: 0; transform: translateY(20px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -872,14 +877,23 @@ export class DashboardComponent implements OnInit {
   }
 
   isUploading = false;
+  uploadCompleted = false;
+  currentUploadName = '';
   uploadProgress = 0;
   uploadTimeLeft = '';
   private uploadStartTime = 0;
+
+  closeUploadTab() {
+    this.isUploading = false;
+    this.uploadCompleted = false;
+  }
 
   onUpload(event: any) {
     const file = event.target.files[0];
     if (file) {
       this.isUploading = true;
+      this.uploadCompleted = false;
+      this.currentUploadName = file.name;
       this.uploadProgress = 0;
       this.uploadTimeLeft = 'Calculating...';
       this.uploadStartTime = Date.now();
@@ -906,6 +920,8 @@ export class DashboardComponent implements OnInit {
             this.showToast(`${file.name} uploaded successfully.`);
             this.load();
             this.isUploading = false;
+            this.uploadCompleted = true;
+            setTimeout(() => { if (this.uploadCompleted) this.uploadCompleted = false; }, 5000);
           }
         },
         error: (err: any) => {
