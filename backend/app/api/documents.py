@@ -573,10 +573,24 @@ async def import_document(
                             
                             # Get bytes
                             img_bytes = img._data()
-                            b64_data = base64.b64encode(img_bytes).decode('utf-8')
+                            from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
+                            import uuid
+                            import asyncio
+                            key = f"uploads/{uuid.uuid4()}-imported.{fmt.lower()}"
                             mime = f"image/{fmt.lower()}"
+                            
+                            def do_upload():
+                                _s3_client.put_object(
+                                    Bucket=R2_BUCKET_NAME,
+                                    Key=key,
+                                    Body=img_bytes,
+                                    ContentType=mime
+                                )
+                            
+                            await asyncio.to_thread(do_upload)
+                            
                             if row_idx < ROWS and col_idx < COLS:
-                                cells[row_idx][col_idx] = f"data:{mime};base64,{b64_data}"
+                                cells[row_idx][col_idx] = f"[IMAGE:{key}]"
                         except Exception as img_err:
                             try:
                                 with open("backend/debug_validation.log", "a") as f_log:
