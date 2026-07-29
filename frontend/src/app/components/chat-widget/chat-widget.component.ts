@@ -21,7 +21,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
         <div class="wp-header-chat">
           <div style="display:flex; align-items:center; gap:12px;">
             <div class="chat-av">
-                <img *ngIf="currentUser?.avatar_url" [src]="currentUser.avatar_url" onerror="this.style.display='none'">
+                <img *ngIf="currentUser?.avatar_url" [src]="formatAvatarUrl(currentUser.avatar_url)" (error)="currentUser.avatar_url = null">
                 <span *ngIf="!currentUser?.avatar_url" style="color:#10b981;">ME</span>
             </div>
             <div>
@@ -41,7 +41,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
         <div class="wp-body-list" *ngIf="filteredConversations().length > 0">
           <div class="chat-list-item" *ngFor="let c of filteredConversations()" (click)="openChat(c.other_user.id)">
             <div class="cli-av" [style.background]="isSelf(c.other_user.id) ? '#10b981' : (c.other_user.avatar_color || '#6366f1')">
-              <img *ngIf="c.other_user.avatar_url && !isSelf(c.other_user.id)" [src]="c.other_user.avatar_url">
+              <img *ngIf="c.other_user.avatar_url && !isSelf(c.other_user.id)" [src]="formatAvatarUrl(c.other_user.avatar_url)" (error)="c.other_user.avatar_url = null">
               <span *ngIf="!c.other_user.avatar_url && !isSelf(c.other_user.id)">{{ getInitials(c.other_user.name) }}</span>
               <span *ngIf="isSelf(c.other_user.id)" style="font-size:12px;">ME</span>
               <div [class]="'cli-status ' + (isOnline(c.other_user.last_login) ? 'online' : 'offline')"></div>
@@ -66,7 +66,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
         <div class="wp-body-list" *ngIf="searchQuery && filteredContacts().length > 0">
           <div class="chat-list-item" *ngFor="let u of filteredContacts()" (click)="openWidgetChat(u.id)">
             <div class="cli-av" [style.background]="u.avatar_color || '#6366f1'">
-              <img *ngIf="u.avatar_url" [src]="u.avatar_url">
+              <img *ngIf="u.avatar_url" [src]="formatAvatarUrl(u.avatar_url)" (error)="u.avatar_url = null">
               <span *ngIf="!u.avatar_url">{{ getInitials(u.name) }}</span>
               <div [class]="'cli-status ' + (isOnline(u.last_login) ? 'online' : 'offline')"></div>
             </div>
@@ -79,7 +79,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
           </div>
           <div class="chat-list-item" *ngFor="let u of serverContacts" (click)="openWidgetChat(u.id)">
             <div class="cli-av" [style.background]="u.avatar_color || '#6366f1'">
-              <img *ngIf="u.avatar_url" [src]="u.avatar_url">
+              <img *ngIf="u.avatar_url" [src]="formatAvatarUrl(u.avatar_url)" (error)="u.avatar_url = null">
               <span *ngIf="!u.avatar_url">{{ getInitials(u.name) }}</span>
             </div>
             <div class="cli-info">
@@ -98,7 +98,7 @@ import { MediaPickerComponent } from '../media-picker/media-picker.component';
           <div style="display:flex; align-items:center; gap:8px;">
             <span class="material-symbols-outlined icon-btn" (click)="closeChat()">arrow_back</span>
             <div class="cli-av" style="width:32px; height:32px; font-size:12px; margin-right:4px;" [style.background]="isSelf(openedChatUser?.id) ? '#10b981' : (openedChatUser?.avatar_color || '#6366f1')">
-                <img *ngIf="openedChatUser?.avatar_url && !isSelf(openedChatUser?.id)" [src]="openedChatUser.avatar_url">
+                <img *ngIf="openedChatUser?.avatar_url && !isSelf(openedChatUser?.id)" [src]="formatAvatarUrl(openedChatUser.avatar_url)" (error)="openedChatUser.avatar_url = null">
                 <span *ngIf="!openedChatUser?.avatar_url && !isSelf(openedChatUser?.id)">{{ getInitials(openedChatUser?.name || '?') }}</span>
                 <span *ngIf="isSelf(openedChatUser?.id)">ME</span>
             </div>
@@ -1627,6 +1627,17 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
       return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  formatAvatarUrl(url: string | null | undefined): string | null {
+      if (!url) return null;
+      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+          return url;
+      }
+      if (!url.startsWith('/')) {
+          url = '/' + url;
+      }
+      return `https://testmail.vsnaptechnology.com${url}`;
+  }
+
   cleanMessage(text: string | null | undefined): string {
       if (!text) return '';
       return text.replace(/\[REPLY_META:[\s\S]*?\]\n?/g, '').replace(/\[Reply:[\s\S]*?\]\n?/g, '');
@@ -1635,6 +1646,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy, OnChanges {
   getPreviewText(text: string | null | undefined): string {
       if (!text) return '';
       const clean = this.cleanMessage(text);
+      if (clean === '[[DELETED]]') return '';
       return clean.replace(/\r?\n|\r/g, ' ').trim();
   }
 

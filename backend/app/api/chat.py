@@ -26,6 +26,15 @@ def to_utc_iso(dt) -> str:
         dt = dt.replace(tzinfo=IST_OFFSET)
     return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
+def format_avatar_url(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    if url.startswith(('http://', 'https://', 'data:', 'blob:')):
+        return url
+    if not url.startswith('/'):
+        url = '/' + url
+    return f"https://testmail.vsnaptechnology.com{url}"
+
 router = APIRouter(tags=["chat"])
 
 from typing import Optional
@@ -91,15 +100,17 @@ async def get_conversations(db: AsyncSession = Depends(get_db), current_user: Us
         )
         unread_dict = {row[0]: row[1] for row in res_unread.all()}
 
-        # Batch fetch last messages (using a subquery or by just fetching latest per conv)
-        # For simplicity and DB compatibility, we fetch the latest message per conversation
-        # MySQL/MariaDB: select m.* from messages m inner join (select conversation_id, max(created_at) as max_c from messages group by conversation_id) grouped on m.conversation_id = grouped.conversation_id and m.created_at = grouped.max_c
+        # Batch fetch last non-deleted messages (ignoring deleted messages for conversation previews)
         subq = (
             select(
                 ChatMessage.conversation_id,
                 func.max(ChatMessage.created_at).label('max_time')
             )
-            .where(ChatMessage.conversation_id.in_(conv_ids))
+            .where(
+                ChatMessage.conversation_id.in_(conv_ids),
+                ChatMessage.message != '[[DELETED]]',
+                or_(ChatMessage.delete_status == 0, ChatMessage.delete_status.is_(None))
+            )
             .group_by(ChatMessage.conversation_id)
             .subquery()
         )
@@ -109,8 +120,11 @@ async def get_conversations(db: AsyncSession = Depends(get_db), current_user: Us
                 ChatMessage.conversation_id == subq.c.conversation_id,
                 ChatMessage.created_at == subq.c.max_time
             ))
+            .where(
+                ChatMessage.message != '[[DELETED]]',
+                or_(ChatMessage.delete_status == 0, ChatMessage.delete_status.is_(None))
+            )
         )
-        # If multiple messages have exact same max_time, we might get duplicates, so we map by ID
         last_msgs_dict = {}
         for m in res_msgs.scalars().all():
             last_msgs_dict[m.conversation_id] = m
@@ -121,8 +135,6 @@ async def get_conversations(db: AsyncSession = Depends(get_db), current_user: Us
             if not other: continue
 
             last_msg = last_msgs_dict.get(conv.id)
-            if not last_msg: continue
-
             unread = unread_dict.get(conv.id, 0)
 
             response.append({
@@ -132,10 +144,10 @@ async def get_conversations(db: AsyncSession = Depends(get_db), current_user: Us
                     "name": other.name,
                     "email": other.email,
                     "avatar_color": getattr(other, 'avatar_color', '#4f46e5') or '#4f46e5',
-                    "avatar_url": getattr(other, 'avatar_url', None),
+                    "avatar_url": format_avatar_url(getattr(other, 'avatar_url', None)),
                 },
-                "last_message": last_msg.message,
-                "last_time": to_utc_iso(last_msg.created_at),
+                "last_message": last_msg.message if last_msg else None,
+                "last_time": to_utc_iso(last_msg.created_at) if last_msg else (to_utc_iso(conv.updated_at) if conv.updated_at else to_utc_iso(conv.created_at)),
                 "unread": unread,
                 "updated_at": to_utc_iso(conv.updated_at) if conv.updated_at else to_utc_iso(conv.created_at)
             })
@@ -183,7 +195,7 @@ async def get_messages(other_user_id: int, db: AsyncSession = Depends(get_db), c
                 "sender_id": m.sender_id,
                 "sender_name": sender_name,
                 "sender_avatar_color": sender_color or '#4f46e5',
-                "sender_avatar_url": sender_url,
+                "sender_avatar_url": format_avatar_url(sender_url),
                 "message": m.message if not m.delete_status else "[[DELETED]]",
                 "is_mine": m.sender_id == current_user.id,
                 "is_file": bool(m.is_file),
@@ -200,7 +212,7 @@ async def get_messages(other_user_id: int, db: AsyncSession = Depends(get_db), c
                 "name": other.name,
                 "email": other.email,
                 "avatar_color": getattr(other, 'avatar_color', '#4f46e5') or '#4f46e5',
-                "avatar_url": getattr(other, 'avatar_url', None)
+                "avatar_url": format_avatar_url(getattr(other, 'avatar_url', None))
             },
             "messages": msgs_response
         }
@@ -775,4 +787,4 @@ async def download_file(path: str, filename: str = None, db: AsyncSession = Depe
 async def get_contacts(db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
     res = await db.execute(select(User).where(User.organization_id == current_user.organization_id))
     users = res.scalars().all()
-    return [{"id": u.id, "name": u.name, "email": u.email, "avatar_color": u.avatar_color, "avatar_url": u.avatar_url, "last_login": to_utc_iso(u.last_login) if hasattr(u, 'last_login') else None} for u in users]
+    return [{"id": u.id, "name": u.name, "email": u.email, "avatar_color": u.avatar_color, "avatar_url": format_avatar_url(u.avatar_url), "last_login": to_utc_iso(u.last_login) if hasattr(u, 'last_login') else None} for u in users]

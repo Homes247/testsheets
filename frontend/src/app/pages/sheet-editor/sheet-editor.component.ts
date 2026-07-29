@@ -15692,7 +15692,9 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  back() { this.save(true); this.goHome(); }
+  back() {
+    this.goHome();
+  }
   ngOnDestroy() {
     if (this.activeMoveListener) document.removeEventListener('mousemove', this.activeMoveListener);
     if (this.activeUpListener) document.removeEventListener('mouseup', this.activeUpListener);
