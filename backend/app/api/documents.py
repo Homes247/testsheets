@@ -564,7 +564,11 @@ async def import_document(
                                 formats[slave_ref]["_mergedInto"] = tl_ref
 
                 if hasattr(ws, '_images') and ws._images:
-                    import base64
+                    from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
+                    from concurrent.futures import ThreadPoolExecutor
+                    import uuid
+
+                    upload_items = []
                     for img in ws._images:
                         try:
                             anchor = img.anchor
@@ -577,37 +581,36 @@ async def import_document(
                             else:
                                 continue
                             
-                            # Get image format (default to png)
-                            fmt = getattr(img, 'format', 'png')
-                            if not fmt:
-                                fmt = 'png'
-                            
-                            # Get bytes
+                            fmt = getattr(img, 'format', 'png') or 'png'
                             img_bytes = img._data()
-                            from app.lib.document_storage import _s3_client, R2_BUCKET_NAME
-                            import uuid
-                            import asyncio
                             key = f"uploads/{uuid.uuid4()}-imported.{fmt.lower()}"
                             mime = f"image/{fmt.lower()}"
                             
-                            def do_upload():
-                                _s3_client.put_object(
-                                    Bucket=R2_BUCKET_NAME,
-                                    Key=key,
-                                    Body=img_bytes,
-                                    ContentType=mime
-                                )
-                            
-                            await asyncio.to_thread(do_upload)
-                            
                             if row_idx < ROWS and col_idx < COLS:
                                 cells[row_idx][col_idx] = f"[IMAGE:{key}]"
+                            
+                            upload_items.append((key, img_bytes, mime))
                         except Exception as img_err:
+                            pass
+
+                    if upload_items:
+                        def _upload_single(item):
+                            k, b, m = item
                             try:
-                                with open("backend/debug_validation.log", "a") as f_log:
-                                    f_log.write(f"  Error parsing image: {img_err}\n")
-                            except:
+                                _s3_client.put_object(
+                                    Bucket=R2_BUCKET_NAME,
+                                    Key=k,
+                                    Body=b,
+                                    ContentType=m
+                                )
+                            except Exception:
                                 pass
+
+                        def _upload_all_parallel():
+                            with ThreadPoolExecutor(max_workers=10) as executor:
+                                list(executor.map(_upload_single, upload_items))
+
+                        await asyncio.to_thread(_upload_all_parallel)
 
                 if ws.data_validations:
                     for dv in ws.data_validations.dataValidation:
