@@ -225,7 +225,7 @@ import { filter, take } from 'rxjs/operators';
         </div>
 
         <!-- Document Views -->
-        <div *ngIf="filteredDocs.length > 0; else empty">
+        <div *ngIf="filteredDocs.length > 0; else empty" [class.has-selection]="selectedDocIds.size > 0">
           
           <!-- Grid View -->
           <div class="grid-container" *ngIf="viewMode === 'grid'">
@@ -635,7 +635,8 @@ import { filter, take } from 'rxjs/operators';
     .btn-outline-secondary { background: #ffffff; border: 1px solid #5f6368; color: #5f6368; }
     .btn-outline-secondary:hover { background: #f1f3f4; }
     .col-check { width: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .custom-checkbox { width: 17px; height: 17px; cursor: pointer; accent-color: #1a73e8; margin: 0; }
+    .custom-checkbox { width: 17px; height: 17px; cursor: pointer; accent-color: #1a73e8; margin: 0; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
+    .list-row:hover .custom-checkbox, .grid-card:hover .custom-checkbox, .list-header:hover .custom-checkbox, .has-selection .custom-checkbox, .custom-checkbox:checked { opacity: 1; pointer-events: auto; }
     .selected-row { background: #e8f0fe !important; }
     .selected-card { border-color: #1a73e8 !important; background: #f4f8fe !important; box-shadow: 0 2px 8px rgba(26,115,232,0.2) !important; }
     .gc-checkbox { display: flex; align-items: center; margin-bottom: 4px; }

@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 async def main():
     async with SessionLocal() as db:
-        res = await db.execute(text("SELECT id, conversation_id, sender_id, message, created_at FROM chat_messages WHERE message LIKE '%DELETED%' OR message LIKE '%deleted%' LIMIT 20"))
+        res = await db.execute(text("SELECT id, conversation_id, sender_id, message, file_path, created_at FROM chat_messages ORDER BY id DESC LIMIT 10"))
         rows = res.all()
         for r in rows:
             print(dict(r._mapping))

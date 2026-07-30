@@ -1056,11 +1056,17 @@ async def get_audit_events(
     if not doc:
         raise HTTPException(404, "Not found")
 
+    IST_OFFSET = _dt.timezone(_dt.timedelta(hours=5, minutes=30))
+    ten_mins_ago = _dt.datetime.now(IST_OFFSET).replace(tzinfo=None) - _dt.timedelta(minutes=10)
+
     result = await db.execute(
         select(AuditEvent)
-        .where(AuditEvent.document_id == doc_id)
+        .where(
+            AuditEvent.document_id == doc_id,
+            AuditEvent.created_at >= ten_mins_ago
+        )
         .order_by(AuditEvent.created_at.desc())
-        .limit(1000)
+        .limit(30)
     )
     events = result.scalars().all()
     return events

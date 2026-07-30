@@ -2752,7 +2752,7 @@ export interface AuditOp {
 
       <!-- Validation / Dropdown Modal (Zoho Picklist Style Sidebar) -->
       <div class="modal-overlay drawer-overlay" *ngIf="validationModalOpen" (click)="showColorOptionsPopover ? closeColorOptionsPopover() : (validationModalOpen = false)" style="z-index: 99999; background: rgba(0,0,0,0.4); display: flex; justify-content: flex-end;">
-        <div class="modal drawer-content" (click)="$event.stopPropagation()"
+        <div class="modal drawer-content" (click)="$event.stopPropagation(); closeColorOptionsPopover()"
              [style.background]="currentTheme === 'dark' ? '#202124' : '#ffffff'"
              [style.color]="currentTheme === 'dark' ? '#e8eaed' : '#202124'"
              [style.border-left]="currentTheme === 'dark' ? '1px solid #3c4043' : '1px solid #dadce0'"
@@ -2854,8 +2854,7 @@ export interface AuditOp {
                   [style.color]="picklistSelectType === 'multi' ? (currentTheme === 'dark' ? '#e8eaed' : '#202124') : (opt.textColor || (currentTheme === 'dark' ? '#000000' : '#202124'))"
                   [style.border]="picklistSelectType === 'multi' ? (currentTheme === 'dark' ? '1px solid #5f6368' : '1px solid #dadce0') : '1px solid transparent'"
                   [style.borderRadius]="displayAsChip ? '18px' : '4px'"
-                  (click)="picklistSelectType !== 'multi' && openColorOptionsPopover(i, $event)"
-                  style="flex:1; min-width:0; padding:7px 12px; outline:none; font-size:13px; font-weight:500; transition:all 0.2s;" [style.cursor]="picklistSelectType === 'multi' ? 'text' : 'pointer'" title="Click to configure colors">
+                  style="flex:1; min-width:0; padding:7px 12px; outline:none; font-size:13px; font-weight:500; transition:all 0.2s;">
 
                 <button *ngIf="picklistSelectType !== 'multi'" type="button" (click)="openColorOptionsPopover(i, $event)" [style.color]="currentTheme === 'dark' ? '#9aa0a6' : '#5f6368'" style="background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center;flex-shrink:0;" title="Palette options">
                   <span class="material-symbols-outlined" style="font-size:18px;">palette</span>
@@ -8656,8 +8655,8 @@ export class SheetEditorComponent implements OnInit, OnDestroy {
     } else {
       this.picklistSelectType = 'single';
       this.displayAsChip = true;
-      this.picklistOptions.push({ label: 'Item 1', color: '#e5e7eb' });
-      this.picklistOptions.push({ label: 'Item 2', color: '#e5e7eb' });
+      this.picklistOptions.push({ label: '', color: '#e5e7eb' });
+      this.picklistOptions.push({ label: '', color: '#e5e7eb' });
       this.appliesToInput = `'${currentSheetName}'.${this.getRangeRef()}`;
     }
     this.validationModalOpen = true;
